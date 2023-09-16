@@ -1,0 +1,3 @@
+[submodule "InAppGpuProfiler"]
+	path = InAppGpuProfiler
+	url = https://github.com/aiekick/InAppGpuProfiler.git
