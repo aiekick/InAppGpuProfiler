@@ -1,13 +1,11 @@
 cmake_minimum_required(VERSION 3.5)
 
-set(PROJECT ImGuiFileDialog_App)
+set(PROJECT Demo)
 
 enable_language(C CXX)
 project(${PROJECT} CXX)
 
-option(USE_STD_FILESYSTEM "Enable std::filesystem use for path and ImGuiFileDialog" OFF)
 option(USE_NEW_IMGUI_KEY_SYSTEM "Define the symbol IMGUI_DISABLE_OBSOLETE_KEYIO" ON)
-option(USE_TEST "Enable tests" OFF)
 
 include(cmake/3rdparty.cmake)
 
@@ -26,10 +24,6 @@ if (USE_NEW_IMGUI_KEY_SYSTEM)
 endif()
 
 file(GLOB MAIN_SOURCES ${CMAKE_SOURCE_DIR}/main.cpp)
-file(GLOB CUSTOM_SOURCES ${CMAKE_SOURCE_DIR}/CustomImGuiFileDialogConfig.h)
-file(GLOB RES_SOURCES 
-		${CMAKE_SOURCE_DIR}/CustomFont.cpp 
-		${CMAKE_SOURCE_DIR}/CustomFont.h)
 file(GLOB IMGUIIMPL_SOURCES 
 		${CMAKE_SOURCE_DIR}/3rdparty/imgui/backends/imgui_impl_glfw.cpp
 		${CMAKE_SOURCE_DIR}/3rdparty/imgui/backends/imgui_impl_glfw.h
@@ -55,13 +49,7 @@ include_directories(
 		${CMAKE_SOURCE_DIR}
 )
 
-if (USE_TEST)
-	enable_testing()
-	add_definitions(-DNEED_TO_BE_PUBLIC_FOR_TESTS)
-	add_subdirectory(${CMAKE_SOURCE_DIR}/tests)
-endif()
-
-add_subdirectory(${CMAKE_SOURCE_DIR}/ImGuiFileDialog)
+add_subdirectory(${CMAKE_SOURCE_DIR}/InAppGpuProfiler)
 	
 add_executable(${PROJECT}
 	MACOSX_BUNDLE
@@ -90,18 +78,10 @@ elseif(UNIX)
 	set_target_properties(${PROJECT} PROPERTIES OUTPUT_NAME "${PROJECT}_Unix")
 endif()
 
-if (USE_STD_FILESYSTEM)
-	add_definitions(-DUSE_STD_FILESYSTEM)
-	set(CMAKE_CXX_STANDARD 17)
-	set_target_properties(${PROJECT} PROPERTIES CXX_STANDARD 17)
-	set_target_properties(ImGuiFileDialog PROPERTIES CXX_STANDARD 17)
-	message("USE C++17 and std::filesystem")
-else()
-	set(CMAKE_CXX_STANDARD 11)
-	set_target_properties(${PROJECT} PROPERTIES CXX_STANDARD 11)
-	set_target_properties(ImGuiFileDialog PROPERTIES CXX_STANDARD 11)
-	message("USE C++11 and DIRENT")
-endif()
+set(CMAKE_CXX_STANDARD 11)
+set_target_properties(${PROJECT} PROPERTIES CXX_STANDARD 11)
+set_target_properties(InAppGpuProfiler PROPERTIES CXX_STANDARD 11)
+	
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
@@ -113,11 +93,11 @@ target_link_libraries(${PROJECT} PRIVATE
 	${GLFW_LIBRARIES}
 	${GLAD_LIBRARIES}
 	${IMGUI_LIBRARIES}
-	ImGuiFileDialog
+	InAppGpuProfiler
 )
 
-set_target_properties(ImGuiFileDialog PROPERTIES FOLDER Lib)
+set_target_properties(InAppGpuProfiler PROPERTIES FOLDER Lib)
 
-target_include_directories(ImGuiFileDialog PRIVATE
+target_include_directories(InAppGpuProfiler PRIVATE
 	${CMAKE_SOURCE_DIR}
 )
