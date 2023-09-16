@@ -23,7 +23,11 @@ if (USE_NEW_IMGUI_KEY_SYSTEM)
 	add_definitions(-DIMGUI_DISABLE_OBSOLETE_KEYIO)
 endif()
 
-file(GLOB MAIN_SOURCES ${CMAKE_SOURCE_DIR}/main.cpp)
+file(GLOB MAIN_SOURCES 
+	${CMAKE_SOURCE_DIR}/main.cpp
+	${CMAKE_SOURCE_DIR}/fbo.hpp
+	${CMAKE_SOURCE_DIR}/shader.hpp
+	${CMAKE_SOURCE_DIR}/texture.hpp)
 file(GLOB IMGUIIMPL_SOURCES 
 		${CMAKE_SOURCE_DIR}/3rdparty/imgui/backends/imgui_impl_glfw.cpp
 		${CMAKE_SOURCE_DIR}/3rdparty/imgui/backends/imgui_impl_glfw.h
