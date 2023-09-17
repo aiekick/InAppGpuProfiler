@@ -1,6 +1,26 @@
-﻿// dear imgui: standalone example application for GLFW + OpenGL 3, using programmable pipeline
-// If you are new to dear imgui, see examples/README.txt and documentation at the top of imgui.cpp.
-// (GLFW is a cross-platform general purpose library for handling windows, inputs, OpenGL/Vulkan graphics context creation, etc.)
+﻿/*
+MIT License
+
+Copyright (c) 2023-2023 Stephane Cuillerdier (aka aiekick)
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+*/
 
 #ifndef IMGUI_DEFINE_MATH_OPERATORS
 #define IMGUI_DEFINE_MATH_OPERATORS
@@ -13,6 +33,7 @@
 #include <InAppGpuProfiler/InAppGpuProfiler.h>
 #include <stdio.h>
 #include <sstream>
+#include <cstdarg>
 #include <fstream>
 #include <clocale>
 #include <string>
@@ -20,6 +41,8 @@
 
 // Include glfw3.h after our OpenGL definitions
 #include <GLFW/glfw3.h>
+
+#include <glApi/glApi.hpp>
 
 // [Win32] Our example includes a copy of glfw3.lib pre-compiled with VS2010 to maximize ease of testing and compatibility with old VS compilers.
 // To link with VS2010-era libraries, VS2015+ requires linking with legacy_stdio_definitions.lib, which we do using this pragma.
@@ -30,6 +53,56 @@
 
 static void glfw_error_callback(int error, const char* description) {
     fprintf(stderr, "Glfw Error %d: %s\n", error, description);
+}
+
+static std::string toStr(const char* fmt, ...) {
+    va_list args;
+    va_start(args, fmt);
+    char TempBuffer[1024 * 3 + 1] = {};
+    const auto w = vsnprintf(TempBuffer, 3072, fmt, args);
+    va_end(args);
+    if (w) {
+        return std::string(TempBuffer, (size_t)w);
+    }
+    return std::string();
+}
+
+struct ProgramDatas {
+    glApi::ShaderPtr vertShaderPtr = nullptr;
+    glApi::ShaderPtr fragShaderPtr = nullptr;
+    glApi::ProgramPtr programPtr = nullptr;
+};
+
+glApi::ShaderPtr shader_quad_ptr = nullptr;
+ProgramDatas programs[3][3];
+
+bool init_shaders() {
+    bool res = false;
+    shader_quad_ptr = glApi::Shader::createFromFile("Quad", GL_VERTEX_SHADER, "shaders/quad.vert");
+    if (shader_quad_ptr != nullptr) {
+        res = true;
+        for (size_t px = 0U; px < 3U; ++px) {
+            for (size_t py = 0U; py < 3U; ++py) {
+                auto& progDatas = programs[px][py];
+                progDatas.vertShaderPtr = shader_quad_ptr;
+                const auto frag_name = toStr("Frag%u%u", (uint32_t)px, (uint32_t)py);
+                const auto shader_name = toStr("shaders/shader%u%u", (uint32_t)px, (uint32_t)py);
+                const auto program_name = toStr("shaders/shader%u%u", (uint32_t)px, (uint32_t)py);
+                progDatas.fragShaderPtr = glApi::Shader::createFromFile(frag_name, GL_FRAGMENT_SHADER, shader_name);
+                if (progDatas.fragShaderPtr != nullptr) {
+                    progDatas.programPtr = glApi::Program::create(program_name);
+                    if (progDatas.programPtr != nullptr) {
+                        if (progDatas.programPtr->addShader(progDatas.vertShaderPtr)) {
+                            if (progDatas.programPtr->addShader(progDatas.fragShaderPtr)) {
+                                res &= progDatas.programPtr->link();
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    return res;
 }
 
 void render_shaders() {
@@ -98,39 +171,41 @@ int main(int, char**) {
     ImGui_ImplOpenGL3_Init(glsl_version);
     ImGui::GetIO().Fonts->AddFontDefault();
 
-    // Main loop
-    while (!glfwWindowShouldClose(window)) {
-        // Poll and handle events (inputs, window resize, etc.)
-        // You can read the io.WantCaptureMouse, io.WantCaptureKeyboard flags to tell if dear imgui wants to use your inputs.
-        // - When io.WantCaptureMouse is true, do not dispatch mouse input data to your main application.
-        // - When io.WantCaptureKeyboard is true, do not dispatch keyboard input data to your main application.
-        // Generally you may always pass all inputs to dear imgui, and hide them from your application based on those two flags.
-        glfwPollEvents();
+    if (init_shaders()) {// Main loop
+        while (!glfwWindowShouldClose(window)) {
+            // Poll and handle events (inputs, window resize, etc.)
+            // You can read the io.WantCaptureMouse, io.WantCaptureKeyboard flags to tell if dear imgui wants to use your inputs.
+            // - When io.WantCaptureMouse is true, do not dispatch mouse input data to your main application.
+            // - When io.WantCaptureKeyboard is true, do not dispatch keyboard input data to your main application.
+            // Generally you may always pass all inputs to dear imgui, and hide them from your application based on those two flags.
+            glfwPollEvents();
 
-        int display_w, display_h;
-        glfwGetFramebufferSize(window, &display_w, &display_h);
+            int display_w, display_h;
+            glfwGetFramebufferSize(window, &display_w, &display_h);
 
-        render_shaders();
+            render_shaders();
 
-        // Start the Dear ImGui frame
-        ImGui_ImplOpenGL3_NewFrame();
-        ImGui_ImplGlfw_NewFrame();
-        ImGui::NewFrame();
+            // Start the Dear ImGui frame
+            ImGui_ImplOpenGL3_NewFrame();
+            ImGui_ImplGlfw_NewFrame();
+            ImGui::NewFrame();
 
-        calc_imgui();
+            calc_imgui();
 
-        // Cpu Zone : prepare
-        ImGui::Render();
+            // Cpu Zone : prepare
+            ImGui::Render();
 
-        // GPU Zone : Rendering
-        glfwMakeContextCurrent(window);
-        glViewport(0, 0, display_w, display_h);
-        glClearColor(0.3f, 0.3f, 0.3f, 0.3f);
-        glClear(GL_COLOR_BUFFER_BIT);
-        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+            // GPU Zone : Rendering
+            glfwMakeContextCurrent(window);
+            glViewport(0, 0, display_w, display_h);
+            glClearColor(0.3f, 0.3f, 0.3f, 0.3f);
+            glClear(GL_COLOR_BUFFER_BIT);
+            ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
-        glfwSwapBuffers(window);
+            glfwSwapBuffers(window);
+        }
     }
+    
 
     // Cleanup
     ImGui_ImplOpenGL3_Shutdown();
