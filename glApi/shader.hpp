@@ -24,9 +24,8 @@ SOFTWARE.
 
 #pragma once
 
-#include <glad/glad.h>
+#include "glApi.hpp"
 #include <imgui.h>
-
 #include <map>
 #include <memory>
 #include <string>

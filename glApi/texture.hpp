@@ -24,7 +24,7 @@ SOFTWARE.
 
 #pragma once
 
-#include <glad/glad.h>
+#include "glApi.hpp"
 #include <memory>
 
 namespace glApi {
@@ -92,6 +92,7 @@ public:
     }
     
     void updateMipMaping() {
+        AIGPScoped("", "Texture::updateMipMaping");
         glGenerateMipmap(GL_TEXTURE_2D);
         CheckGLErrors;
         glFinish();

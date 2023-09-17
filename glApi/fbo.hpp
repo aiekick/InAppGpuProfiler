@@ -24,9 +24,7 @@ SOFTWARE.
 
 #pragma once
 
-#include <glad/glad.h>
 #include "glApi.hpp"
-
 #include <vector>
 #include <memory>
 
@@ -92,6 +90,7 @@ public:
 
     bool bind() {
         if (m_FBOId > 0) {
+            AIGPScoped("", "FBO::Bind");
             glBindFramebuffer(GL_FRAMEBUFFER, m_FBOId);
             CheckGLErrors;
             return true;
@@ -105,6 +104,7 @@ public:
     }
 
     void updateMipMaping() {
+        AIGPScoped("", "FBO::updateMipMaping");
         for (auto& tex_ptr : m_Textures) {
             if (tex_ptr != nullptr) {
                 tex_ptr->updateMipMaping();
@@ -113,6 +113,7 @@ public:
     }
     
     void selectBuffers() {
+        AIGPScoped("", "FBO::SelectBuffers");
         glDrawBuffers(m_CountBuffers, m_ColorDrawBuffers);
         CheckGLErrors;
     }

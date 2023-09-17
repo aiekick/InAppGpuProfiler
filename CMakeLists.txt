@@ -16,7 +16,8 @@ else ()
 endif ()
 
 add_definitions(${GLFW_DEFINITIONS})
-add_definitions(-DCUSTOM_IMGUIFILEDIALOG_CONFIG="../../../CustomImGuiFileDialogConfig.h")
+add_definitions(-DIMGUI_DEFINE_MATH_OPERATORS)
+add_definitions(-DCUSTOM_IN_APP_GPU_PROFILER_CONFIG="${CMAKE_SOURCE_DIR}/CustomInAppGpuProfiler.h")
 add_definitions(-D_CRT_SECURE_NO_WARNINGS)
 
 if (USE_NEW_IMGUI_KEY_SYSTEM)
@@ -24,12 +25,9 @@ if (USE_NEW_IMGUI_KEY_SYSTEM)
 endif()
 
 file(GLOB MAIN_SOURCES 
-	${CMAKE_SOURCE_DIR}/main.cpp
-	${CMAKE_SOURCE_DIR}/fbo.hpp
-	${CMAKE_SOURCE_DIR}/shader.hpp
-	${CMAKE_SOURCE_DIR}/texture.hpp
-	${CMAKE_SOURCE_DIR}/program.hpp
-	${CMAKE_SOURCE_DIR}/glApi.hpp)
+	${CMAKE_SOURCE_DIR}/*.cpp
+	${CMAKE_SOURCE_DIR}/*.h
+	${CMAKE_SOURCE_DIR}/*.hpp)
 file(GLOB IMGUIIMPL_SOURCES 
 		${CMAKE_SOURCE_DIR}/3rdparty/imgui/backends/imgui_impl_glfw.cpp
 		${CMAKE_SOURCE_DIR}/3rdparty/imgui/backends/imgui_impl_glfw.h

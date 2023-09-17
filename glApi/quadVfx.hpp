@@ -1,3 +1,27 @@
+/*
+MIT License
+
+Copyright (c) 2023-2023 Stephane Cuillerdier (aka aiekick)
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+*/
+
 #pragma once
 
 /* Simple quad Vfx
@@ -7,7 +31,6 @@
  * One fragment Shader
  */
 
-#include <glad/glad.h>
 #include "glApi.hpp"
 #include <imgui.h>
 
@@ -23,6 +46,7 @@ typedef std::weak_ptr<QuadVfx> QuadVfxWeak;
 class QuadVfx {
 private:
     QuadVfxWeak m_This;
+    std::string m_Name;
     QuadMeshWeak m_QuadMesh;
     ShaderWeak m_VertShader;
     FBOPtr m_FboPtr = nullptr;
@@ -68,6 +92,7 @@ public:
         assert(vSx > 0U);
         assert(vSy > 0U);
         assert(vCountBuffers > 0U);
+        m_Name = vName;
         m_VertShader = vVertShader;
         m_QuadMesh = vQuadMesh;
         m_SizeX = vSx;
@@ -94,7 +119,13 @@ public:
         return m_FboPtr->resize(vSx, vSy);
     }
 
+    void declareViewPort() {
+        AIGPScoped(m_Name, "Viewport");
+        glViewport(0, 0, m_SizeX, m_SizeY);
+    }
+
     void render() {
+        AIGPScoped(m_Name, "Render quad %s", m_Name.c_str());
         auto quad_ptr = m_QuadMesh.lock();
         if (quad_ptr != nullptr) {
             if (m_FboPtr != nullptr) {
@@ -102,6 +133,8 @@ public:
                     if (m_FboPtr->bind()) {
                         if (m_ProgramPtr->use()) {
                             m_FboPtr->selectBuffers();
+                            m_FboPtr->clearColorAttachments();
+                            declareViewPort();
                             quad_ptr->render(GL_TRIANGLES);
                             m_FboPtr->updateMipMaping();
                             m_ProgramPtr->unuse();

@@ -24,7 +24,7 @@ SOFTWARE.
 
 #pragma once
 
-#include <glad/glad.h>
+#include "glApi.hpp"
 #include <vector>
 #include <memory>
 #include <string>
@@ -116,6 +116,7 @@ public:
 
     bool use() {
         if (m_ProgramId > 0U) {
+            AIGPScoped("", "Porgram::Use");
             glUseProgram(m_ProgramId);
             CheckGLErrors;
             return true;

@@ -83,6 +83,9 @@ bool init_shaders(const float& vSx, const float& vSy) {
             }
         }    
     }
+    if (res) {
+        iagp::InAppGpuProfiler::Instance()->puIsActive = true;
+    }
     return res;
 }
 
@@ -94,6 +97,7 @@ bool resize_shaders(const float& vSx, const float& vSy) {
 }
 
 void render_shaders() {
+    AIGPNewFrame("", "GPU Frame");  // a main Zone is always needed
     if (quadVfxPtr != nullptr) {
         quadVfxPtr->render();
     }
@@ -112,8 +116,12 @@ void calc_imgui() {
     }
     ImGui::End();
 
-    ImGui::Begin("Profiler");
+    ImGui::Begin("Uniforms");
 
+    ImGui::End();
+
+    ImGui::Begin("In App Gpu Profiler", nullptr, ImGuiWindowFlags_MenuBar);
+    iagp::InAppGpuProfiler::Instance()->Draw();
     ImGui::End();
 }
 
@@ -170,23 +178,32 @@ int main(int, char**) {
 
             if (display_w > 0 && display_h > 0) {
                 glfwMakeContextCurrent(window);
-                render_shaders();
 
-                // Start the Dear ImGui frame
-                ImGui_ImplOpenGL3_NewFrame();
-                ImGui_ImplGlfw_NewFrame();
-                ImGui::NewFrame();
+                {
+                    AIGPNewFrame("", "GPU Frame");  // a main Zone is always needed
+                    render_shaders();
 
-                // Cpu Zone : prepare
-                calc_imgui();
-                ImGui::Render();
+                    // Start the Dear ImGui frame
+                    ImGui_ImplOpenGL3_NewFrame();
+                    ImGui_ImplGlfw_NewFrame();
+                    ImGui::NewFrame();
 
-                // GPU Zone : Rendering
-                glfwMakeContextCurrent(window);
-                glViewport(0, 0, display_w, display_h);
-                glClearColor(0.3f, 0.3f, 0.3f, 0.3f);
-                glClear(GL_COLOR_BUFFER_BIT);
-                ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+                    // Cpu Zone : prepare
+                    calc_imgui();
+                    ImGui::Render();
+
+                    // GPU Zone : Rendering
+                    glfwMakeContextCurrent(window);
+                    {
+                        AIGPScoped("", "ImGui::Render");
+                        glViewport(0, 0, display_w, display_h);
+                        glClearColor(0.3f, 0.3f, 0.3f, 0.3f);
+                        glClear(GL_COLOR_BUFFER_BIT);
+                        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+                    }
+                }
+
+                AIGPCollect;  // collect all measure queries
 
                 glfwSwapBuffers(window);
             }

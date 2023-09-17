@@ -24,7 +24,7 @@ SOFTWARE.
 
 #pragma once
 
-#include <glad/glad.h>
+#include "glApi.hpp"
 #include <vector>
 #include <memory>
 
@@ -131,6 +131,7 @@ public:
 
     bool bind() {
         if (glIsVertexArray(m_VaoId) == GL_TRUE) {
+            AIGPScoped("", "Mesh::bind");
             CheckGLErrors;
             glBindVertexArray(m_VaoId);
             CheckGLErrors;
@@ -152,6 +153,7 @@ public:
     }
 
     void render(GLenum vRenderMode) {
+        AIGPScoped("", "Mesh::render");
         if (bind()) {
             glDrawElements(vRenderMode, (GLsizei)m_Indices.size(), GL_UNSIGNED_INT, nullptr);
             CheckGLErrors;
