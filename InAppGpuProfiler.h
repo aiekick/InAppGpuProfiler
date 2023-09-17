@@ -49,6 +49,10 @@ SOFTWARE.
     auto __IAGP__ScopedSubZone = iagp::InAppGpuScopedZone(false, section, fmt, ##__VA_ARGS__); \
     (void)__IAGP__ScopedSubZone
 
+#ifndef GPU_CONTEXT
+#define GPU_CONTEXT void*
+#endif // GPU_CONTEXT
+
 namespace iagp {
 
 class InAppGpuQueryZone;

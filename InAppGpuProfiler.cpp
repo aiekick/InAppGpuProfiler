@@ -50,7 +50,7 @@ SOFTWARE.
 
 #ifndef GET_CURRENT_CONTEXT
 static GPU_CONTEXT GetCurrentContext() {
-    DEBUG_BREAK(); // you need to create your own function for get the opengl context
+    DEBUG_BREAK; // you need to create your own function for get the opengl context
     return nullptr;
 }
 #define GET_CURRENT_CONTEXT GetCurrentContext
@@ -58,21 +58,21 @@ static GPU_CONTEXT GetCurrentContext() {
 
 #ifndef SET_CURRENT_CONTEXT
 static void SetCurrentContext(GPU_CONTEXT vContextPtr) {
-    DEBUG_BREAK();  // you need to create your own function for get the opengl context
+    DEBUG_BREAK;  // you need to create your own function for get the opengl context
 }
 #define SET_CURRENT_CONTEXT SetCurrentContext
 #endif  // GET_CURRENT_CONTEXT
 
 #ifndef LOG_ERROR_MESSAGE
 static void LogError(const char* fmt, ...) {
-    DEBUG_BREAK();  // you need to define your own function for get error messages
+    DEBUG_BREAK;  // you need to define your own function for get error messages
 }
 #define LOG_ERROR_MESSAGE LogError
 #endif  // LOG_ERROR_MESSAGE
 
 #ifndef LOG_DEBUG_ERROR_MESSAGE
 static void LogDebugError(const char* fmt, ...) {
-    DEBUG_BREAK();  // you need to define your own function for get error messages in debug
+    DEBUG_BREAK;  // you need to define your own function for get error messages in debug
 }
 #define LOG_DEBUG_ERROR_MESSAGE LogDebugError
 #endif  // LOG_DEBUG_ERROR_MESSAGE
