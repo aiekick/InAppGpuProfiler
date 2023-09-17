@@ -126,7 +126,6 @@ static bool PushStyleColorWithContrast(const ImU32& backGroundColor, const ImGui
     return false;
 }
 
-
 static std::string toStr(const char* fmt, ...) {
     va_list args;
     va_start(args, fmt);
@@ -140,7 +139,7 @@ static std::string toStr(const char* fmt, ...) {
 }
 
 InAppGpuAverageValue::InAppGpuAverageValue() {
-    memset(m_PerFrame, 0, sizeof(double) * 60U);
+    memset(m_PerFrame, 0, sizeof(double) * sCountAverageValues);
     m_PerFrameIdx = 0;
     m_PerFrameAccum = 0.0;
     m_AverageValue = 0.0;
@@ -148,16 +147,17 @@ InAppGpuAverageValue::InAppGpuAverageValue() {
 
 void InAppGpuAverageValue::AddValue(double vValue) {
     if (vValue < m_PerFrame[m_PerFrameIdx]) {
-        memset(m_PerFrame, 0, sizeof(double) * 60U);
+        memset(m_PerFrame, 0, sizeof(double) * sCountAverageValues);
         m_PerFrameIdx = 0;
         m_PerFrameAccum = 0.0;
         m_AverageValue = 0.0;
     }
     m_PerFrameAccum += vValue - m_PerFrame[m_PerFrameIdx];
     m_PerFrame[m_PerFrameIdx] = vValue;
-    m_PerFrameIdx = (m_PerFrameIdx + 1) % 60;
-    if (m_PerFrameAccum > 0.0)
-        m_AverageValue = m_PerFrameAccum / 60.0;
+    m_PerFrameIdx = (m_PerFrameIdx + 1) % sCountAverageValues;
+    if (m_PerFrameAccum > 0.0) {
+        m_AverageValue = m_PerFrameAccum / (double)sCountAverageValues;
+    }
 }
 
 double InAppGpuAverageValue::GetAverage() {

@@ -63,7 +63,8 @@ typedef std::shared_ptr<InAppGpuGLContext> IAGPContextPtr;
 
 class InAppGpuAverageValue {
 private:
-    double m_PerFrame[60];
+    static constexpr uint32_t sCountAverageValues = 60U;
+    double m_PerFrame[sCountAverageValues] = {};
     int m_PerFrameIdx = 0;
     double m_PerFrameAccum = 0.0;
     double m_AverageValue = 0.0;
