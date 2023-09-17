@@ -27,7 +27,9 @@ file(GLOB MAIN_SOURCES
 	${CMAKE_SOURCE_DIR}/main.cpp
 	${CMAKE_SOURCE_DIR}/fbo.hpp
 	${CMAKE_SOURCE_DIR}/shader.hpp
-	${CMAKE_SOURCE_DIR}/texture.hpp)
+	${CMAKE_SOURCE_DIR}/texture.hpp
+	${CMAKE_SOURCE_DIR}/program.hpp
+	${CMAKE_SOURCE_DIR}/glApi.hpp)
 file(GLOB IMGUIIMPL_SOURCES 
 		${CMAKE_SOURCE_DIR}/3rdparty/imgui/backends/imgui_impl_glfw.cpp
 		${CMAKE_SOURCE_DIR}/3rdparty/imgui/backends/imgui_impl_glfw.h
