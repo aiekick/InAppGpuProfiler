@@ -1,5 +1,26 @@
-﻿// SPDX-License-Identifier: GPL-3.0-or-later
-// Copyright 2017-2023 Stephane Cuillerdier All rights reserved
+﻿/*
+MIT License
+
+Copyright (c) 2021-2023 Stephane Cuillerdier (aka aiekick)
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+*/
 
 // This is an independent m_oject of an individual developer. Dear PVS-Studio, please check it.
 // PVS-Studio Static Code Analyzer for C, C++ and C#: http://www.viva64.com
@@ -12,6 +33,7 @@
 #define IMGUI_DEFINE_MATH_OPERATORS
 #endif  // IMGUI_DEFINE_MATH_OPERATORS
 
+#include <imgui.h>
 #include <imgui_internal.h>
 
 #ifdef _MSC_VER
@@ -22,17 +44,89 @@
 #define DEBUG_BREAK
 #endif
 
-namespace iagp {
-static void SetCurrentContext(GPU_CONTEXT_PTR vContextPtr) {
-}
+#ifndef GPU_CONTEXT
+#define GPU_CONTEXT void*
+#endif  // GPU_CONTEXT
 
-static GPU_CONTEXT_PTR GetCurrentContext() {
+#ifndef GET_CURRENT_CONTEXT
+static GPU_CONTEXT GetCurrentContext() {
+    DEBUG_BREAK(); // you need to create your own function for get the opengl context
     return nullptr;
 }
+#define GET_CURRENT_CONTEXT GetCurrentContext
+#endif // GET_CURRENT_CONTEXT
+
+#ifndef SET_CURRENT_CONTEXT
+static void SetCurrentContext(GPU_CONTEXT vContextPtr) {
+    DEBUG_BREAK();  // you need to create your own function for get the opengl context
+}
+#define SET_CURRENT_CONTEXT SetCurrentContext
+#endif  // GET_CURRENT_CONTEXT
+
+#ifndef LOG_ERROR_MESSAGE
 static void LogError(const char* fmt, ...) {
+    DEBUG_BREAK();  // you need to define your own function for get error messages
 }
+#define LOG_ERROR_MESSAGE LogError
+#endif  // LOG_ERROR_MESSAGE
+
+#ifndef LOG_DEBUG_ERROR_MESSAGE
 static void LogDebugError(const char* fmt, ...) {
+    DEBUG_BREAK();  // you need to define your own function for get error messages in debug
 }
+#define LOG_DEBUG_ERROR_MESSAGE LogDebugError
+#endif  // LOG_DEBUG_ERROR_MESSAGE
+
+#ifndef IMGUI_PLAY_PAUSE_BUTTON
+static bool PlayPauseButton(bool& vPlayPause) {
+    bool res = false;
+    const char* play_pause_label = "Play";
+    if (vPlayPause) {
+        play_pause_label = "Pause";
+    }
+    if (ImGui::Button(play_pause_label)) {
+        vPlayPause = !vPlayPause;
+        res = true;
+    }
+    if (ImGui::IsItemHovered()) {
+        ImGui::SetTooltip("Play/Pause Profiling");
+    }
+    return res;
+}
+#define IMGUI_PLAY_PAUSE_BUTTON PlayPauseButton
+#endif  // LOG_DEBUG_ERROR_MESSAGE
+
+namespace iagp {
+
+// contrast from 1 to 21
+// https://www.w3.org/TR/WCAG20/#relativeluminancedef
+static float CalcContrastRatio(const ImU32& backgroundColor, const ImU32& foreGroundColor) {
+    const float sa0 = (float)((backgroundColor >> IM_COL32_A_SHIFT) & 0xFF);
+    const float sa1 = (float)((foreGroundColor >> IM_COL32_A_SHIFT) & 0xFF);
+    static float sr = 0.2126f / 255.0f;
+    static float sg = 0.7152f / 255.0f;
+    static float sb = 0.0722f / 255.0f;
+    const float contrastRatio =
+        (sr * sa0 * ((backgroundColor >> IM_COL32_R_SHIFT) & 0xFF) + sg * sa0 * ((backgroundColor >> IM_COL32_G_SHIFT) & 0xFF) +
+         sb * sa0 * ((backgroundColor >> IM_COL32_B_SHIFT) & 0xFF) + 0.05f) /
+        (sr * sa1 * ((foreGroundColor >> IM_COL32_R_SHIFT) & 0xFF) + sg * sa1 * ((foreGroundColor >> IM_COL32_G_SHIFT) & 0xFF) +
+         sb * sa1 * ((foreGroundColor >> IM_COL32_B_SHIFT) & 0xFF) + 0.05f);
+    if (contrastRatio < 1.0f)
+        return 1.0f / contrastRatio;
+    return contrastRatio;
+}
+
+static bool PushStyleColorWithContrast(const ImU32& backGroundColor, const ImGuiCol& foreGroundColor, const ImVec4& invertedColor,
+                                              const float& maxContrastRatio) {
+    const float contrastRatio = CalcContrastRatio(backGroundColor, ImGui::GetColorU32(foreGroundColor));
+    if (contrastRatio < maxContrastRatio) {
+        ImGui::PushStyleColor(foreGroundColor, invertedColor);
+        return true;
+    }
+    return false;
+}
+
+
 static std::string toStr(const char* fmt, ...) {
     va_list args;
     va_start(args, fmt);
@@ -44,92 +138,6 @@ static std::string toStr(const char* fmt, ...) {
     }
     return std::string();
 }
-static void RenderTextClipped(const ImVec2& pos_min, const ImVec2& pos_max, const char* text, const char* text_end, const ImVec2* text_size_if_known,
-                              const ImVec2& align, const ImRect* clip_rect) {
-    ImGui::RenderTextClipped(pos_min, pos_max, text, text_end, text_size_if_known, align, clip_rect);
-}
-
-class InAppGpuAverageValue {
-private:
-    double m_PerFrame[60];
-    int m_PerFrameIdx = 0;
-    double m_PerFrameAccum = 0.0;
-    double m_AverageValue = 0.0;
-
-public:
-    InAppGpuAverageValue();
-    void AddValue(double vValue);
-    double GetAverage();
-};
-
-class InAppGpuQueryZone {
-public:
-    static GLuint sMaxDepthToOpen;
-    static bool sShowLeafMode;
-    static float sContrastRatio;
-    static bool sActivateLogger;
-
-public:
-    GLuint puDepth = 0U;  // the puDepth of the QueryZone
-    GLuint puIds[2] = {0U, 0U};
-    std::vector<IAGPQueryZonePtr> puZonesOrdered;
-    std::unordered_map<std::string, IAGPQueryZonePtr> puZonesDico;  // main container
-    std::string puName;
-    IAGPQueryZonePtr puThis = nullptr;
-    IAGPQueryZonePtr puTopQuery = nullptr;
-
-private:
-    bool m_IsRoot = false;
-    double m_ElapsedTime = 0.0;
-    double m_StartTime = 0.0;
-    double m_EndTime = 0.0;
-    GLuint m_StartFrameId = 0;
-    GLuint m_EndFrameId = 0;
-    GLuint64 m_StartTimeStamp = 0;
-    GLuint64 m_EndTimeStamp = 0;
-    bool m_Expanded = false;
-    bool m_Highlighted = false;
-    InAppGpuAverageValue m_AverageStartValue;
-    InAppGpuAverageValue m_AverageEndValue;
-    GPU_CONTEXT_PTR m_ThreadPtr = nullptr;
-    std::string m_BarLabel;
-    std::string m_SectionName;
-    float m_BarWidth = 0.0f;
-    float m_BarPos = 0.0f;
-
-public:
-    InAppGpuQueryZone(GPU_CONTEXT_PTR vThread, const std::string& vName, const std::string& vSectionName, const bool& vIsRoot = false);
-    ~InAppGpuQueryZone();
-    void Clear();
-    void SetStartTimeStamp(const GLuint64& vValue);
-    void SetEndTimeStamp(const GLuint64& vValue);
-    void ComputeElapsedTime();
-    void DrawMetricLabels();
-    bool DrawMetricGraph(IAGPQueryZonePtr vParent = nullptr, uint32_t vDepth = 0);
-};
-
-class InAppGpuGLContext {
-private:
-    GPU_CONTEXT_PTR m_ThreadPtr;
-    IAGPQueryZonePtr m_RootZone = nullptr;
-    std::unordered_map<GLuint, IAGPQueryZonePtr>
-        m_QueryIDToZone;  // Get the zone for a query id because a query have to id's : start and end
-    std::unordered_map<GLuint, IAGPQueryZonePtr> m_DepthToLastZone;  // last zone registered at this puDepth
-    std::set<GLuint> m_PendingUpdate;                                                  // some queries msut but retrieveds
-
-public:
-    InAppGpuGLContext(GPU_CONTEXT_PTR vThread);
-    void Clear();
-    void Init();
-    void Unit();
-    void Collect();
-    void Draw();
-    IAGPQueryZonePtr GetQueryZoneForName(const std::string& vName, const std::string& vSection = "", const bool& vIsRoot = false);
-
-private:
-    void SetQueryZoneForDepth(IAGPQueryZonePtr vQueryZone, GLuint vDepth);
-    IAGPQueryZonePtr GetQueryZoneFromDepth(GLuint vDepth);
-};
 
 InAppGpuAverageValue::InAppGpuAverageValue() {
     memset(m_PerFrame, 0, sizeof(double) * 60U);
@@ -165,8 +173,8 @@ bool InAppGpuQueryZone::sShowLeafMode = false;
 float InAppGpuQueryZone::sContrastRatio = 4.3f;
 bool InAppGpuQueryZone::sActivateLogger = false;
 
-InAppGpuQueryZone::InAppGpuQueryZone(GPU_CONTEXT_PTR vThread, const std::string& vName, const std::string& vSectionName, const bool& vIsRoot)
-    : m_ThreadPtr(vThread), puName(vName), m_IsRoot(vIsRoot), m_SectionName(vSectionName) {
+InAppGpuQueryZone::InAppGpuQueryZone(GPU_CONTEXT vContext, const std::string& vName, const std::string& vSectionName, const bool& vIsRoot)
+    : m_Context(vContext), puName(vName), m_IsRoot(vIsRoot), m_SectionName(vSectionName) {
     m_StartFrameId = 0;
     m_EndFrameId = 0;
     m_StartTimeStamp = 0;
@@ -174,12 +182,12 @@ InAppGpuQueryZone::InAppGpuQueryZone(GPU_CONTEXT_PTR vThread, const std::string&
     m_ElapsedTime = 0.0;
     puDepth = InAppGpuScopedZone::sCurrentDepth;
 
-    SetCurrentContext(m_ThreadPtr);
+    SET_CURRENT_CONTEXT(m_Context);
     glGenQueries(2, puIds);
 }
 
 InAppGpuQueryZone::~InAppGpuQueryZone() {
-    SetCurrentContext(m_ThreadPtr);
+    SET_CURRENT_CONTEXT(m_Context);
     glDeleteQueries(2, puIds);
 
     puName.clear();
@@ -188,7 +196,6 @@ InAppGpuQueryZone::~InAppGpuQueryZone() {
     m_StartTimeStamp = 0;
     m_EndTimeStamp = 0;
     m_ElapsedTime = 0.0;
-    m_ThreadPtr = nullptr;
     puZonesOrdered.clear();
     puZonesDico.clear();
 }
@@ -346,9 +353,14 @@ bool InAppGpuQueryZone::DrawMetricGraph(IAGPQueryZonePtr vParent, uint32_t vDept
             ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 1.0f);
             ImGui::RenderFrame(bb.Min, bb.Max, ImGui::ColorConvertFloat4ToU32(cv4), true, 2.0f);
             ImGui::PopStyleVar();
-            RenderTextClipped(bb.Min + style.FramePadding, bb.Max - style.FramePadding, label, nullptr, &label_size, ImVec2(0.5f, 0.5f), &bb);
-
-            vDepth++;
+            const bool pushed = PushStyleColorWithContrast(//
+                ImGui::ColorConvertFloat4ToU32(cv4), ImGuiCol_Text, ImVec4(0, 0, 0, 1), InAppGpuQueryZone::sContrastRatio);
+            ImGui::RenderTextClipped(bb.Min + style.FramePadding, bb.Max - style.FramePadding, label, nullptr, &label_size,
+                                     ImVec2(0.5f, 0.5f) /*style.ButtonTextAlign*/, &bb);
+            if (pushed) {
+                ImGui::PopStyleColor();
+            }
+            ++vDepth;
         }
 
         // childs
@@ -377,7 +389,7 @@ bool InAppGpuQueryZone::DrawMetricGraph(IAGPQueryZonePtr vParent, uint32_t vDept
 /////////////////////// GL CONTEXT /////////////////////////
 ////////////////////////////////////////////////////////////
 
-InAppGpuGLContext::InAppGpuGLContext(GPU_CONTEXT_PTR vThread) : m_ThreadPtr(vThread) {
+InAppGpuGLContext::InAppGpuGLContext(GPU_CONTEXT vContext) : m_Context(vContext) {
 }
 
 void InAppGpuGLContext::Clear() {
@@ -426,7 +438,7 @@ void InAppGpuGLContext::Collect() {
         } else {
             auto ptr = m_QueryIDToZone[id];
             if (ptr.use_count()) {
-                LogError("%*s id not retrieved : %u", ptr->puDepth, "", id);
+                LOG_ERROR_MESSAGE("%*s id not retrieved : %u", ptr->puDepth, "", id);
             }
         }
     }
@@ -440,7 +452,7 @@ void InAppGpuGLContext::Draw() {
     if (m_RootZone.use_count()) {
         m_RootZone->DrawMetricGraph();
         if (!InAppGpuQueryZone::sShowLeafMode) {
-            m_RootZone->DrawMetricLabels();
+            //m_RootZone->DrawMetricLabels();
         }
     }
 }
@@ -464,7 +476,7 @@ IAGPQueryZonePtr InAppGpuGLContext::GetQueryZoneForName(const std::string& vName
         #endif
         m_DepthToLastZone.clear();
         if (!m_RootZone.use_count()) {
-            res = std::make_shared<InAppGpuQueryZone>(m_ThreadPtr, vName, vSection, vIsRoot);
+            res = std::make_shared<InAppGpuQueryZone>(m_Context, vName, vSection, vIsRoot);
             if (res.use_count()) {
                 res->puThis = res;
                 res->puDepth = InAppGpuScopedZone::sCurrentDepth;
@@ -483,7 +495,7 @@ IAGPQueryZonePtr InAppGpuGLContext::GetQueryZoneForName(const std::string& vName
         auto root = GetQueryZoneFromDepth(InAppGpuScopedZone::sCurrentDepth - 1U);
         if (root.use_count()) {
             if (root->puZonesDico.find(vName) == root->puZonesDico.end()) {  // not found
-                res = std::make_shared<InAppGpuQueryZone>(m_ThreadPtr, vName, vSection, vIsRoot);
+                res = std::make_shared<InAppGpuQueryZone>(m_Context, vName, vSection, vIsRoot);
                 if (res.use_count()) {
                     res->puThis = res;
                     res->puDepth = InAppGpuScopedZone::sCurrentDepth;
@@ -516,7 +528,7 @@ IAGPQueryZonePtr InAppGpuGLContext::GetQueryZoneForName(const std::string& vName
         if (res->puName != vName) {
 #ifdef _DEBUG
             // at puDepth 0 there is only one frame
-            LogDebugError("was registerd at depth %u %s. but we got %s\nwe clear the m_ofiler",  //
+            LOG_DEBUG_ERROR_MESSAGE("was registerd at depth %u %s. but we got %s\nwe clear the m_ofiler",  //
                           InAppGpuScopedZone::sCurrentDepth, res->puName.c_str(), vName.c_str());
 #endif
             // c'est pas normal, dans le doute on efface le profiler, ca va forcer a le re remplir
@@ -596,19 +608,10 @@ void InAppGpuProfiler::Draw() {
         if (InAppGpuScopedZone::sMaxDepth) {
             InAppGpuQueryZone::sMaxDepthToOpen = InAppGpuScopedZone::sMaxDepth;
         }
-        ImGui::Text("%s", "Logging");
-        ImGui::Checkbox("##logging", &InAppGpuQueryZone::sActivateLogger);
 
-        const char* play_pause_label = "Play";
-        if (puIsPaused) {
-            play_pause_label = "Pause";
-        }
-        if (ImGui::Button(play_pause_label)) {
-            puIsPaused = !puIsPaused;
-        }
-        if (ImGui::IsItemHovered()) {
-            ImGui::SetTooltip("Play/Pause Profiling");
-        }
+        IMGUI_PLAY_PAUSE_BUTTON(puIsPaused);
+
+        ImGui::Checkbox("Logging", &InAppGpuQueryZone::sActivateLogger);
 
         ImGui::EndMenuBar();
     }
@@ -620,7 +623,7 @@ void InAppGpuProfiler::Draw() {
     }
 }
 
-IAGPContextPtr InAppGpuProfiler::GetContextPtr(GPU_CONTEXT_PTR vThreadPtr) {
+IAGPContextPtr InAppGpuProfiler::GetContextPtr(GPU_CONTEXT vThreadPtr) {
     if (!puIsActive)
         return nullptr;
 
@@ -632,7 +635,7 @@ IAGPContextPtr InAppGpuProfiler::GetContextPtr(GPU_CONTEXT_PTR vThreadPtr) {
         return m_Contexts[(intptr_t)vThreadPtr];
     }
 
-    LogError("GPU_CONTEXT_PTR vThreadPtr is NULL");
+    LOG_ERROR_MESSAGE("GPU_CONTEXT vThreadPtr is NULL");
 
     return nullptr;
 }
@@ -653,7 +656,7 @@ InAppGpuScopedZone::InAppGpuScopedZone(const bool& vIsRoot, const std::string& v
     const int w = vsnprintf(TempBuffer, 256, fmt, args);
     va_end(args);
     if (w) {
-        auto context_ptr = InAppGpuProfiler::Instance()->GetContextPtr(GetCurrentContext());
+        auto context_ptr = InAppGpuProfiler::Instance()->GetContextPtr(GET_CURRENT_CONTEXT());
         if (context_ptr != nullptr) {
             queryPtr = context_ptr->GetQueryZoneForName(std::string(TempBuffer, (size_t)w), vSection, vIsRoot);
             if (queryPtr != nullptr) {
