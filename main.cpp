@@ -71,6 +71,9 @@ glApi::ShaderPtr shader_quad_ptr = nullptr;
 glApi::QuadMeshPtr quadMeshPtr = nullptr;
 glApi::QuadVfxPtr quadVfxPtr = nullptr;
 
+// Global uniforms
+float uniformTimeValue = 0.0f;
+
 bool init_shaders(const float& vSx, const float& vSy) {
     bool res = false;
     quadMeshPtr = glApi::QuadMesh::create();
@@ -79,6 +82,10 @@ bool init_shaders(const float& vSx, const float& vSy) {
         if (shader_quad_ptr != nullptr) {
             quadVfxPtr = glApi::QuadVfx::create("First Test", shader_quad_ptr, quadMeshPtr, "shaders/shader00.frag", vSx, vSy, 1U);
             if (quadVfxPtr != nullptr) {
+                // add unforms
+                quadVfxPtr->addUniform(GL_FRAGMENT_SHADER, "uTime", &uniformTimeValue, true);
+                // finalize we are ready to rendering it
+                quadVfxPtr->finalizeBeforeRendering();
                 res = true;
             }
         }    
@@ -117,7 +124,9 @@ void calc_imgui() {
     ImGui::End();
 
     ImGui::Begin("Uniforms");
-
+    if (quadVfxPtr != nullptr) {
+        quadVfxPtr->drawUniformWidgets();
+    }
     ImGui::End();
 
     ImGui::Begin("In App Gpu Profiler", nullptr, ImGuiWindowFlags_MenuBar);
@@ -206,6 +215,8 @@ int main(int, char**) {
                 AIGPCollect;  // collect all measure queries
 
                 glfwSwapBuffers(window);
+
+                uniformTimeValue += ImGui::GetIO().DeltaTime;
             }
         }
     }    

@@ -4,6 +4,9 @@
 layout(location = 0) out vec4 fragColor;
 layout(location = 0) in vec2 vUV;
 
+uniform float uTime;
+
 void main() {
-	fragColor =  vec4(vUV,0,1);
+	float t = sin(uTime) * 0.5 + 0.5;
+	fragColor =  vec4(vUV,t,1);
 }

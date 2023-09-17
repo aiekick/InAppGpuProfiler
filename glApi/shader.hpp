@@ -38,21 +38,11 @@ typedef std::shared_ptr<Shader> ShaderPtr;
 typedef std::weak_ptr<Shader> ShaderWeak;
 
 class Shader {
-public:
-    struct Uniform {
-        std::string name;
-        float* datas = nullptr;
-        bool used = false;
-        bool showed = false;
-    };
-
 private:
     ShaderWeak m_This;
     GLuint m_ShaderId = 0U;
     std::string m_ShaderName;
     GLenum m_ShaderType = 0;
-    // for simplification we support only float uniforms
-    std::map<std::string, Uniform> m_FloatUniforms;
 
 public:
     static ShaderPtr createFromFile(const std::string& vShaderName, const GLenum& vShaderType, const std::string& vFile) {
@@ -122,25 +112,8 @@ public:
             m_ShaderId = 0U;
         }
     }
-    // for simplification we support only float uniforms
-    bool addUniform(const std::string& vUniformName, float* vUniformPtr) {
-        assert(!vUniformName.empty());
-        assert(!vUniformPtr);
-        Uniform uni;
-        uni.name = vUniformName;
-        uni.datas = vUniformPtr;
-        m_FloatUniforms[vUniformName] = uni;
-    }
-    void drawWidgets() {
-        ImGui::PushID(m_ShaderName.c_str());
-        if (ImGui::CollapsingHeader(m_ShaderName.c_str())) {
-            for (auto& uni : m_FloatUniforms) {
-                if (uni.second.showed && uni.second.used) {
-                    ImGui::DragFloat(uni.second.name.c_str(), uni.second.datas);
-                }
-            }
-        }
-        ImGui::PopID();
+    const std::string& getName() {
+        return m_ShaderName;
     }
     GLuint getShaderId() {
         return m_ShaderId;

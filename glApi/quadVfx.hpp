@@ -113,7 +113,13 @@ public:
         }
         return false;
     }
-
+    void addUniform(const GLenum& vShaderType, const std::string& vUniformName, float* vUniformPtr, const bool& vShowWidget) {
+        m_ProgramPtr->addUniform(vShaderType, vUniformName, vUniformPtr, vShowWidget);
+    }
+    void finalizeBeforeRendering() {
+        assert(m_ProgramPtr != nullptr);
+        m_ProgramPtr->locateUniforms();
+    }
     bool resize(const float& vSx, const float vSy) {
         assert(m_FboPtr != nullptr);
         return m_FboPtr->resize(vSx, vSy);
@@ -127,22 +133,20 @@ public:
     void render() {
         AIGPScoped(m_Name, "Render quad %s", m_Name.c_str());
         auto quad_ptr = m_QuadMesh.lock();
-        if (quad_ptr != nullptr) {
-            if (m_FboPtr != nullptr) {
-                if (m_ProgramPtr != nullptr) {
-                    if (m_FboPtr->bind()) {
-                        if (m_ProgramPtr->use()) {
-                            m_FboPtr->selectBuffers();
-                            m_FboPtr->clearColorAttachments();
-                            declareViewPort();
-                            quad_ptr->render(GL_TRIANGLES);
-                            m_FboPtr->updateMipMaping();
-                            m_ProgramPtr->unuse();
-                        }
-                        m_FboPtr->unbind();
-                    }
-                }
+        assert(quad_ptr != nullptr);
+        assert(m_FboPtr != nullptr);
+        assert(m_ProgramPtr != nullptr);
+        if (m_FboPtr->bind()) {
+            if (m_ProgramPtr->use()) {
+                m_ProgramPtr->uploadUniforms();
+                m_FboPtr->selectBuffers();
+                m_FboPtr->clearColorAttachments();
+                declareViewPort();
+                quad_ptr->render(GL_TRIANGLES);
+                m_FboPtr->updateMipMaping();
+                m_ProgramPtr->unuse();
             }
+            m_FboPtr->unbind();
         }
     }
 
@@ -154,7 +158,10 @@ public:
             }
         }
     }
-
+    void drawUniformWidgets() {
+        assert(m_ProgramPtr != nullptr);
+        m_ProgramPtr->drawUniformWidgets();
+    }
     void unit() {
         m_ProgramPtr.reset();
         m_FragShaderPtr.reset();
