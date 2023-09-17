@@ -77,13 +77,19 @@ public:
         m_Indices = vIndices;
         m_Format = vFormat;
         glGenVertexArrays(1, &m_VaoId);
+        CheckGLErrors;
         glGenBuffers(1, &m_VboId);
+        CheckGLErrors;
         glGenBuffers(1, &m_IboId);
+        CheckGLErrors;
 
         // bind
         glBindVertexArray(m_VaoId);
+        CheckGLErrors;
         glBindBuffer(GL_ARRAY_BUFFER, m_VboId);
+        CheckGLErrors;
         glBufferData(GL_ARRAY_BUFFER, m_VerticeSize * m_Vertices.size(), m_Vertices.data(), GL_STATIC_DRAW);
+        CheckGLErrors;
 
         // vertices
 
@@ -92,32 +98,45 @@ public:
         for (const auto& format : m_Format) {
             assert(format > 0U);
             glEnableVertexAttribArray(idx);
+            CheckGLErrors;
             if (idx == 0U) {
-                glVertexAttribPointer(offset, format, GL_FLOAT, GL_FALSE, m_VerticeSize, (void*)nullptr);
+                glVertexAttribPointer(idx, format, GL_FLOAT, GL_FALSE, m_VerticeSize, (void*)nullptr);
             } else {
-                glVertexAttribPointer(offset, format, GL_FLOAT, GL_FALSE, m_VerticeSize, (void*)(sizeof(float) * format));
+                glVertexAttribPointer(idx, format, GL_FLOAT, GL_FALSE, m_VerticeSize, (void*)(sizeof(float) * offset));
             }
+            CheckGLErrors;
             glDisableVertexAttribArray(idx);
+            CheckGLErrors;
             offset += format;
+            ++idx;
         }
 
         // indices
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_IboId);
+        CheckGLErrors;
         glBufferData(GL_ELEMENT_ARRAY_BUFFER, m_IndiceSize * m_Indices.size(), m_Indices.data(), GL_STATIC_DRAW);
+        CheckGLErrors;
 
         // unbind
         glBindVertexArray(0);
+        CheckGLErrors;
+        // if i not unbind the VBOs and IBOs after the unbind of the VAO, it seem the VAO is corrupted..
         glBindBuffer(GL_ARRAY_BUFFER, 0);
+        CheckGLErrors;
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+        CheckGLErrors;
 
         return (glIsVertexArray(m_VaoId) == GL_TRUE);
     }
 
     bool bind() {
         if (glIsVertexArray(m_VaoId) == GL_TRUE) {
+            CheckGLErrors;
             glBindVertexArray(m_VaoId);
+            CheckGLErrors;
             for (size_t idx = 0U; idx < m_Format.size(); ++idx) {
                 glEnableVertexAttribArray((GLuint)idx);
+                CheckGLErrors;
             }
             return true;
         }
@@ -127,6 +146,7 @@ public:
     void unbind() {
         for (size_t idx = 0U; idx < m_Format.size(); ++idx) {
             glDisableVertexAttribArray((GLuint)idx);
+            CheckGLErrors;
         }
         glBindVertexArray(0);
     }
@@ -134,6 +154,7 @@ public:
     void render(GLenum vRenderMode) {
         if (bind()) {
             glDrawElements(vRenderMode, (GLsizei)m_Indices.size(), GL_UNSIGNED_INT, nullptr);
+            CheckGLErrors;
             unbind();
         }
     }
@@ -141,14 +162,17 @@ public:
     void unit() {
         if (m_VaoId > 0) {
             glDeleteVertexArrays(1, &m_VaoId);
+            CheckGLErrors;
             m_VaoId = 0U;
         }
         if (m_VboId > 0) {
             glDeleteBuffers(1, &m_VboId);
+            CheckGLErrors;
             m_VboId = 0U;
         }
         if (m_IboId > 0) {
             glDeleteBuffers(1, &m_IboId);
+            CheckGLErrors;
             m_IboId = 0U;
         }
     }

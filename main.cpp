@@ -77,7 +77,7 @@ bool init_shaders(const float& vSx, const float& vSy) {
     if (quadMeshPtr != nullptr) {
         shader_quad_ptr = glApi::Shader::createFromFile("Quad", GL_VERTEX_SHADER, "shaders/quad.vert");
         if (shader_quad_ptr != nullptr) {
-            quadVfxPtr = glApi::QuadVfx::create("First", shader_quad_ptr, quadMeshPtr, "shaders/shader00.frag", vSx, vSy, 1U);
+            quadVfxPtr = glApi::QuadVfx::create("First Test", shader_quad_ptr, quadMeshPtr, "shaders/shader00.frag", vSx, vSy, 1U);
             if (quadVfxPtr != nullptr) {
                 res = true;
             }
@@ -97,6 +97,12 @@ void render_shaders() {
     if (quadVfxPtr != nullptr) {
         quadVfxPtr->render();
     }
+}
+
+void unit_shaders() {
+    shader_quad_ptr.reset();
+    quadMeshPtr.reset();
+    quadVfxPtr.reset();
 }
 
 void calc_imgui() {
@@ -121,20 +127,10 @@ int main(int, char**) {
     glfwSetErrorCallback(glfw_error_callback);
     if (!glfwInit()) return 1;
 
-        // Decide GL+GLSL versions
-#if APPLE
-    // GL 3.2 + GLSL 150
-    const char* glsl_version = "#version 150";
+    // Decide GL+GLSL versions
+    const char* glsl_version = "#version 330";
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 2);
-    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);  // 3.2+ only
-    glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);            // Required on Mac
-#else
-    // GL 3.0 + GLSL 130
-    const char* glsl_version = "#version 130";
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 0);
-#endif
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
 
     // Create window with graphics context
     GLFWwindow* window = glfwCreateWindow(1280, 720, "Dear ImGui GLFW+OpenGL3 example", NULL, NULL);
@@ -198,6 +194,7 @@ int main(int, char**) {
     }    
 
     // Cleanup
+    unit_shaders();
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplGlfw_Shutdown();
     ImGui::DestroyContext();

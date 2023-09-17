@@ -95,12 +95,17 @@ public:
         m_ShaderName = vShaderName;
         m_ShaderType = vShaderType;
         m_ShaderId = glCreateShader((GLenum)vShaderType);
+        CheckGLErrors;
         if (m_ShaderId > 0U) {
             const GLchar* sources = vCode.c_str();
             glShaderSource(m_ShaderId, 1U, &sources, nullptr);
+            CheckGLErrors;
             glCompileShader(m_ShaderId);
+            CheckGLErrors;
+            glFinish();
             GLint compiled = 0;
             glGetShaderiv(m_ShaderId, GL_COMPILE_STATUS, &compiled);
+            CheckGLErrors;
             if (!compiled) {
                 printShaderLogs(vShaderName, "Errors");
                 res = false;
@@ -114,6 +119,7 @@ public:
     void unit() {
         if (m_ShaderId > 0U) {
             glDeleteShader(m_ShaderId);
+            CheckGLErrors;
             m_ShaderId = 0U;
         }
     }
@@ -160,9 +166,11 @@ private:
         if (m_ShaderId > 0U) {
             GLint infoLen = 0;
             glGetShaderiv(m_ShaderId, GL_INFO_LOG_LENGTH, &infoLen);
+            CheckGLErrors;
             if (infoLen > 1) {
                 char* infoLog = new char[infoLen];
                 glGetShaderInfoLog(m_ShaderId, infoLen, nullptr, infoLog);
+                CheckGLErrors;
                 printf("#### SHADER %s ####", vShaderName.c_str());
                 printf("%s : %s", vLogTypes.c_str(), infoLog);
                 delete[] infoLog;

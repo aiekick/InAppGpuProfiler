@@ -69,7 +69,9 @@ public:
         m_CountBuffers = vCountBuffers;
         if (m_CountBuffers > 0U) {
             glGenFramebuffers(1, &m_FBOId);
+            CheckGLErrors;
             glBindFramebuffer(GL_FRAMEBUFFER, m_FBOId);
+            CheckGLErrors;
             m_Textures.resize(m_CountBuffers);
             m_ColorDrawBuffers = new GLenum[m_CountBuffers];
             for (GLuint idx = 0U; idx < vCountBuffers; ++idx) {
@@ -77,11 +79,13 @@ public:
                 if (m_Textures[idx] != nullptr) {
                     m_ColorDrawBuffers[idx] = GL_COLOR_ATTACHMENT0 + (GLenum)idx;
                     glFramebufferTexture2D(GL_FRAMEBUFFER, m_ColorDrawBuffers[idx], GL_TEXTURE_2D, m_Textures[idx]->getTexId(), 0);
+                    CheckGLErrors;
                 }
             }
             glFinish();
             res = check();
             glBindFramebuffer(GL_FRAMEBUFFER, 0);
+            CheckGLErrors;
         }
         return res;
     }
@@ -89,6 +93,7 @@ public:
     bool bind() {
         if (m_FBOId > 0) {
             glBindFramebuffer(GL_FRAMEBUFFER, m_FBOId);
+            CheckGLErrors;
             return true;
         }
         return false;
@@ -96,6 +101,7 @@ public:
 
     void clearColorAttachments() {
         glClear(GL_COLOR_BUFFER_BIT);
+        CheckGLErrors;
     }
 
     void updateMipMaping() {
@@ -108,6 +114,7 @@ public:
     
     void selectBuffers() {
         glDrawBuffers(m_CountBuffers, m_ColorDrawBuffers);
+        CheckGLErrors;
     }
 
     GLuint getTextureId(const size_t& vBufferIdx = 0U) {
@@ -121,12 +128,14 @@ public:
         bool res = false;
         if (m_FBOId > 0) {
             glBindFramebuffer(GL_FRAMEBUFFER, m_FBOId);
+            CheckGLErrors;
             for (GLuint idx = 0U; idx < m_CountBuffers; ++idx) {
                 if (m_Textures[idx] != nullptr) {
                     if (m_Textures[idx]->resize(vNewSx, vNewSy)) {
                         if (m_Textures[idx] != nullptr) {
                             m_ColorDrawBuffers[idx] = GL_COLOR_ATTACHMENT0 + (GLenum)idx;
                             glFramebufferTexture2D(GL_FRAMEBUFFER, m_ColorDrawBuffers[idx], GL_TEXTURE_2D, m_Textures[idx]->getTexId(), 0);
+                            CheckGLErrors;
                         }
                     }
                 }
@@ -134,13 +143,16 @@ public:
             glFinish();
             res = check();
             glBindFramebuffer(GL_FRAMEBUFFER, 0);
+            CheckGLErrors;
         }
         return res;
     }
 
     bool check() {
         if (glIsFramebuffer(m_FBOId) == GL_TRUE) {
+            CheckGLErrors;
             if (glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE) {
+                CheckGLErrors;
                 return true;
             }
         }
@@ -149,10 +161,12 @@ public:
 
     void unbind() {
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        CheckGLErrors;
     }
 
     void unit() {
         glDeleteFramebuffers(1, &m_FBOId);
+        CheckGLErrors;
     }
 };
 

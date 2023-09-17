@@ -59,6 +59,7 @@ public:
         assert(!vProgramName.empty());
         m_ProgramName = vProgramName;
         m_ProgramId = glCreateProgram();
+        CheckGLErrors;
         if (m_ProgramId > 0U) {
             return true;
         }
@@ -80,16 +81,22 @@ public:
                 if (ptr != nullptr) {
                     one_shader_at_least = true;
                     glAttachShader(m_ProgramId, ptr->getShaderId());
+                    CheckGLErrors;
                     // we could delete shader id after linking,
                     // but we dont since we can have many shader for the same program
                 }
             }
             if (one_shader_at_least) {
                 glLinkProgram(m_ProgramId);
+                CheckGLErrors;
+                glFinish();
                 GLint linked = 0;
-                glGetShaderiv(m_ProgramId, GL_LINK_STATUS, &linked);
+                glGetProgramiv(m_ProgramId, GL_LINK_STATUS, &linked);
+                CheckGLErrors;
                 if (!linked) {
-                    printProgramLogs(m_ProgramName, "Link Errors");
+                    if (!printProgramLogs(m_ProgramName, "Link Errors")) {
+                        printf("Program \"%s\" linking fail for unknown reason\n", m_ProgramName.c_str());
+                    }
                     res = false;
                 } else {
                     printProgramLogs(m_ProgramName, "Link Warnings");
@@ -102,6 +109,7 @@ public:
     void unit() {
         if (m_ProgramId > 0U) {
             glDeleteProgram(m_ProgramId);
+            CheckGLErrors;
             m_ProgramId = 0U;
         }
     }
@@ -109,6 +117,7 @@ public:
     bool use() {
         if (m_ProgramId > 0U) {
             glUseProgram(m_ProgramId);
+            CheckGLErrors;
             return true;
         }
         return false;
@@ -119,20 +128,24 @@ public:
     }
 
 private:
-    void printProgramLogs(const std::string& vProgramName, const std::string& vLogTypes) {
+    bool printProgramLogs(const std::string& vProgramName, const std::string& vLogTypes) {
         assert(!vProgramName.empty());
         assert(!vLogTypes.empty());
         if (m_ProgramId > 0U) {
             GLint infoLen = 0;
             glGetProgramiv(m_ProgramId, GL_INFO_LOG_LENGTH, &infoLen);
+            CheckGLErrors;
             if (infoLen > 1) {
                 char* infoLog = new char[infoLen];
                 glGetProgramInfoLog(m_ProgramId, infoLen, nullptr, infoLog);
+                CheckGLErrors;
                 printf("#### PROGRAM %s ####", vProgramName.c_str());
                 printf("%s : %s", vLogTypes.c_str(), infoLog);
                 delete[] infoLog;
+                return true;
             }
         }
+        return false;
     }
 };
 

@@ -1,11 +1,11 @@
 #pragma once
 
 /* Simple quad Vfx
-* Quad Mesh
-* FBO with one attachment
-* One vertex Shader quad
-* One fragment Shader 
-*/
+ * Quad Mesh
+ * FBO with one attachment
+ * One vertex Shader quad
+ * One fragment Shader
+ */
 
 #include <glad/glad.h>
 #include "glApi.hpp"
@@ -34,8 +34,8 @@ private:
 public:
     static QuadVfxPtr create(             //
         const std::string& vName,         //
-        ShaderWeak vVertShader,         //
-        QuadMeshWeak vQuadMesh,         //
+        ShaderWeak vVertShader,           //
+        QuadMeshWeak vQuadMesh,           //
         const std::string& vFragFile,     //
         const GLsizei& vSx,               //
         const GLsizei& vSy,               //
@@ -101,7 +101,9 @@ public:
                 if (m_ProgramPtr != nullptr) {
                     if (m_FboPtr->bind()) {
                         if (m_ProgramPtr->use()) {
+                            m_FboPtr->selectBuffers();
                             quad_ptr->render(GL_TRIANGLES);
+                            m_FboPtr->updateMipMaping();
                             m_ProgramPtr->unuse();
                         }
                         m_FboPtr->unbind();
@@ -110,7 +112,7 @@ public:
             }
         }
     }
-    
+
     void drawImGuiThumbnail() {
         if (m_FboPtr != nullptr) {
             const auto texId = m_FboPtr->getTextureId();
@@ -119,7 +121,7 @@ public:
             }
         }
     }
-    
+
     void unit() {
         m_ProgramPtr.reset();
         m_FragShaderPtr.reset();
