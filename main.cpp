@@ -69,10 +69,83 @@ static std::string toStr(const char* fmt, ...) {
 
 glApi::ShaderPtr shader_quad_ptr = nullptr;
 glApi::QuadMeshPtr quadMeshPtr = nullptr;
-glApi::QuadVfxPtr quadVfxPtr = nullptr;
+glApi::QuadVfxPtr quadVfxPtrs[3][3] = {};
 
 // Global uniforms
+
 float uniformTimeValue = 0.0f;
+
+glApi::QuadVfxPtr init_shader_00(const float& vSx, const float& vSy) {
+    auto res_ptr = glApi::QuadVfx::create("Vfx 00", shader_quad_ptr, quadMeshPtr, "shaders/shader00.frag", vSx, vSy, 1U);
+    assert(res_ptr != nullptr);
+    res_ptr->addUniform(GL_FRAGMENT_SHADER, "uTime", &uniformTimeValue, true);
+    res_ptr->finalizeBeforeRendering();
+    return res_ptr;
+}
+
+glApi::QuadVfxPtr init_shader_01(const float& vSx, const float& vSy) {
+    auto res_ptr = glApi::QuadVfx::create("Vfx 01", shader_quad_ptr, quadMeshPtr, "shaders/shader01.frag", vSx, vSy, 1U);
+    assert(res_ptr != nullptr);
+    res_ptr->addUniform(GL_FRAGMENT_SHADER, "uTime", &uniformTimeValue, true);
+    res_ptr->finalizeBeforeRendering();
+    return res_ptr;
+}
+
+glApi::QuadVfxPtr init_shader_02(const float& vSx, const float& vSy) {
+    auto res_ptr = glApi::QuadVfx::create("Vfx 02", shader_quad_ptr, quadMeshPtr, "shaders/shader02.frag", vSx, vSy, 1U);
+    assert(res_ptr != nullptr);
+    res_ptr->addUniform(GL_FRAGMENT_SHADER, "uTime", &uniformTimeValue, true);
+    res_ptr->finalizeBeforeRendering();
+    return res_ptr;
+}
+
+glApi::QuadVfxPtr init_shader_10(const float& vSx, const float& vSy) {
+    auto res_ptr = glApi::QuadVfx::create("Vfx 10", shader_quad_ptr, quadMeshPtr, "shaders/shader10.frag", vSx, vSy, 1U);
+    assert(res_ptr != nullptr);
+    res_ptr->addUniform(GL_FRAGMENT_SHADER, "uTime", &uniformTimeValue, true);
+    res_ptr->finalizeBeforeRendering();
+    return res_ptr;
+}
+
+glApi::QuadVfxPtr init_shader_11(const float& vSx, const float& vSy) {
+    auto res_ptr = glApi::QuadVfx::create("Vfx 11", shader_quad_ptr, quadMeshPtr, "shaders/shader11.frag", vSx, vSy, 1U);
+    assert(res_ptr != nullptr);
+    res_ptr->addUniform(GL_FRAGMENT_SHADER, "uTime", &uniformTimeValue, true);
+    res_ptr->finalizeBeforeRendering();
+    return res_ptr;
+}
+
+glApi::QuadVfxPtr init_shader_12(const float& vSx, const float& vSy) {
+    auto res_ptr = glApi::QuadVfx::create("Vfx 12", shader_quad_ptr, quadMeshPtr, "shaders/shader12.frag", vSx, vSy, 1U);
+    assert(res_ptr != nullptr);
+    res_ptr->addUniform(GL_FRAGMENT_SHADER, "uTime", &uniformTimeValue, true);
+    res_ptr->finalizeBeforeRendering();
+    return res_ptr;
+}
+
+glApi::QuadVfxPtr init_shader_20(const float& vSx, const float& vSy) {
+    auto res_ptr = glApi::QuadVfx::create("Vfx 20", shader_quad_ptr, quadMeshPtr, "shaders/shader20.frag", vSx, vSy, 1U);
+    assert(res_ptr != nullptr);
+    res_ptr->addUniform(GL_FRAGMENT_SHADER, "uTime", &uniformTimeValue, true);
+    res_ptr->finalizeBeforeRendering();
+    return res_ptr;
+}
+
+glApi::QuadVfxPtr init_shader_21(const float& vSx, const float& vSy) {
+    auto res_ptr = glApi::QuadVfx::create("Vfx 21", shader_quad_ptr, quadMeshPtr, "shaders/shader21.frag", vSx, vSy, 1U);
+    assert(res_ptr != nullptr);
+    res_ptr->addUniform(GL_FRAGMENT_SHADER, "uTime", &uniformTimeValue, true);
+    res_ptr->finalizeBeforeRendering();
+    return res_ptr;
+}
+
+glApi::QuadVfxPtr init_shader_22(const float& vSx, const float& vSy) {
+    auto res_ptr = glApi::QuadVfx::create("Vfx 22", shader_quad_ptr, quadMeshPtr, "shaders/shader22.frag", vSx, vSy, 1U);
+    assert(res_ptr != nullptr);
+    res_ptr->addUniform(GL_FRAGMENT_SHADER, "uTime", &uniformTimeValue, true);
+    res_ptr->finalizeBeforeRendering();
+    return res_ptr;
+}
 
 bool init_shaders(const float& vSx, const float& vSy) {
     bool res = false;
@@ -80,14 +153,16 @@ bool init_shaders(const float& vSx, const float& vSy) {
     if (quadMeshPtr != nullptr) {
         shader_quad_ptr = glApi::Shader::createFromFile("Quad", GL_VERTEX_SHADER, "shaders/quad.vert");
         if (shader_quad_ptr != nullptr) {
-            quadVfxPtr = glApi::QuadVfx::create("First Test", shader_quad_ptr, quadMeshPtr, "shaders/shader00.frag", vSx, vSy, 1U);
-            if (quadVfxPtr != nullptr) {
-                // add unforms
-                quadVfxPtr->addUniform(GL_FRAGMENT_SHADER, "uTime", &uniformTimeValue, true);
-                // finalize we are ready to rendering it
-                quadVfxPtr->finalizeBeforeRendering();
-                res = true;
-            }
+            quadVfxPtrs[0][0] = init_shader_00(vSx, vSy);
+            quadVfxPtrs[0][1] = init_shader_01(vSx, vSy);
+            quadVfxPtrs[0][2] = init_shader_02(vSx, vSy);
+            quadVfxPtrs[1][0] = init_shader_10(vSx, vSy);
+            quadVfxPtrs[1][1] = init_shader_11(vSx, vSy);
+            quadVfxPtrs[1][2] = init_shader_12(vSx, vSy);
+            quadVfxPtrs[2][0] = init_shader_20(vSx, vSy);
+            quadVfxPtrs[2][1] = init_shader_21(vSx, vSy);
+            quadVfxPtrs[2][2] = init_shader_22(vSx, vSy);
+            res = true;
         }    
     }
     if (res) {
@@ -97,35 +172,56 @@ bool init_shaders(const float& vSx, const float& vSy) {
 }
 
 bool resize_shaders(const float& vSx, const float& vSy) {
-    if (quadVfxPtr != nullptr) {
-        return quadVfxPtr->resize(vSx, vSy);
+    bool res = true;
+    for (size_t x = 0U; x < 3; ++x) {
+        for (size_t y = 0U; y < 3; ++y) {
+            assert(quadVfxPtrs[x][y] != nullptr);
+            res &= quadVfxPtrs[x][y]->resize(vSx, vSy);
+        }
     }
-    return false;
+    return res;
 }
 
 void render_shaders() {
     AIGPNewFrame("", "GPU Frame");  // a main Zone is always needed
-    if (quadVfxPtr != nullptr) {
-        quadVfxPtr->render();
+    for (size_t x = 0U; x < 3; ++x) {
+        for (size_t y = 0U; y < 3; ++y) {
+            assert(quadVfxPtrs[x][y] != nullptr);
+            quadVfxPtrs[x][y]->render();
+        }
     }
 }
 
 void unit_shaders() {
     shader_quad_ptr.reset();
     quadMeshPtr.reset();
-    quadVfxPtr.reset();
+    for (size_t x = 0U; x < 3; ++x) {
+        for (size_t y = 0U; y < 3; ++y) {
+            assert(quadVfxPtrs[x][y] != nullptr);
+            quadVfxPtrs[x][y].reset();
+        }
+    }
 }
 
 void calc_imgui() {
     ImGui::Begin("Shaders");
-    if (quadVfxPtr != nullptr) {
-        quadVfxPtr->drawImGuiThumbnail();
+    for (size_t y = 0U; y < 3; ++y) {
+        for (size_t x = 0U; x < 3; ++x) {
+            assert(quadVfxPtrs[x][y] != nullptr);
+            quadVfxPtrs[x][y]->drawImGuiThumbnail();
+            if (x != 2U) {
+                ImGui::SameLine();
+            }
+        }
     }
     ImGui::End();
 
     ImGui::Begin("Uniforms");
-    if (quadVfxPtr != nullptr) {
-        quadVfxPtr->drawUniformWidgets();
+    for (size_t x = 0U; x < 3; ++x) {
+        for (size_t y = 0U; y < 3; ++y) {
+            assert(quadVfxPtrs[x][y] != nullptr);
+            quadVfxPtrs[x][y]->drawUniformWidgets();
+        }
     }
     ImGui::End();
 
@@ -173,7 +269,7 @@ int main(int, char**) {
     ImGui::GetIO().Fonts->AddFontDefault();
 
     double ratio = 16.0 / 9.0;
-    int thumbnail_height = 200;
+    int thumbnail_height = 100;
     int thumbnail_width = (int)(ratio * (double)thumbnail_height);
 
     int last_display_w = 0, last_display_h = 0;

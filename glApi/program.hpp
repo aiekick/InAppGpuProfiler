@@ -149,7 +149,7 @@ public:
             for (auto& shader_type : m_FloatUniforms) {
                 switch (shader_type.first) {
                     case GL_VERTEX_SHADER: ImGui::Text("%s", "Stage Vertex"); break;
-                    case GL_FRAGMENT_SHADER: ImGui::Text("%s", "Stage Vertex"); break;
+                    case GL_FRAGMENT_SHADER: ImGui::Text("%s", "Stage Fragment"); break;
                 }
                 ImGui::Indent();
                 for (auto& uni : shader_type.second) {
