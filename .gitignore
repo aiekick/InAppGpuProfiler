@@ -31,3 +31,4 @@
 *.out
 *.app
 /build
+/bin/Demo_Win32.pdb

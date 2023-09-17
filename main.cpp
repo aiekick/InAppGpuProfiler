@@ -67,59 +67,47 @@ static std::string toStr(const char* fmt, ...) {
     return std::string();
 }
 
-struct ProgramDatas {
-    glApi::ShaderPtr vertShaderPtr = nullptr;
-    glApi::ShaderPtr fragShaderPtr = nullptr;
-    glApi::ProgramPtr programPtr = nullptr;
-};
-
 glApi::ShaderPtr shader_quad_ptr = nullptr;
-ProgramDatas programs[3][3];
+glApi::QuadMeshPtr quadMeshPtr = nullptr;
+glApi::QuadVfxPtr quadVfxPtr = nullptr;
 
-bool init_shaders() {
+bool init_shaders(const float& vSx, const float& vSy) {
     bool res = false;
-    shader_quad_ptr = glApi::Shader::createFromFile("Quad", GL_VERTEX_SHADER, "shaders/quad.vert");
-    if (shader_quad_ptr != nullptr) {
-        res = true;
-        for (size_t px = 0U; px < 3U; ++px) {
-            for (size_t py = 0U; py < 3U; ++py) {
-                auto& progDatas = programs[px][py];
-                progDatas.vertShaderPtr = shader_quad_ptr;
-                const auto frag_name = toStr("Frag%u%u", (uint32_t)px, (uint32_t)py);
-                const auto shader_name = toStr("shaders/shader%u%u", (uint32_t)px, (uint32_t)py);
-                const auto program_name = toStr("shaders/shader%u%u", (uint32_t)px, (uint32_t)py);
-                progDatas.fragShaderPtr = glApi::Shader::createFromFile(frag_name, GL_FRAGMENT_SHADER, shader_name);
-                if (progDatas.fragShaderPtr != nullptr) {
-                    progDatas.programPtr = glApi::Program::create(program_name);
-                    if (progDatas.programPtr != nullptr) {
-                        if (progDatas.programPtr->addShader(progDatas.vertShaderPtr)) {
-                            if (progDatas.programPtr->addShader(progDatas.fragShaderPtr)) {
-                                res &= progDatas.programPtr->link();
-                            }
-                        }
-                    }
-                }
+    quadMeshPtr = glApi::QuadMesh::create();
+    if (quadMeshPtr != nullptr) {
+        shader_quad_ptr = glApi::Shader::createFromFile("Quad", GL_VERTEX_SHADER, "shaders/quad.vert");
+        if (shader_quad_ptr != nullptr) {
+            quadVfxPtr = glApi::QuadVfx::create("First", shader_quad_ptr, quadMeshPtr, "shaders/shader00.frag", vSx, vSy, 1U);
+            if (quadVfxPtr != nullptr) {
+                res = true;
             }
-        }
+        }    
     }
     return res;
 }
 
-void render_shaders() {
+bool resize_shaders(const float& vSx, const float& vSy) {
+    if (quadVfxPtr != nullptr) {
+        return quadVfxPtr->resize(vSx, vSy);
+    }
+    return false;
+}
 
+void render_shaders() {
+    if (quadVfxPtr != nullptr) {
+        quadVfxPtr->render();
+    }
 }
 
 void calc_imgui() {
     ImGui::Begin("Shaders");
-    {
-
+    if (quadVfxPtr != nullptr) {
+        quadVfxPtr->drawImGuiThumbnail();
     }
     ImGui::End();
 
     ImGui::Begin("Profiler");
-    {
-        
-    }
+
     ImGui::End();
 }
 
@@ -171,41 +159,43 @@ int main(int, char**) {
     ImGui_ImplOpenGL3_Init(glsl_version);
     ImGui::GetIO().Fonts->AddFontDefault();
 
-    if (init_shaders()) {// Main loop
+    double ratio = 16.0 / 9.0;
+    int thumbnail_height = 200;
+    int thumbnail_width = (int)(ratio * (double)thumbnail_height);
+
+    int last_display_w = 0, last_display_h = 0;
+    if (init_shaders(thumbnail_width, thumbnail_height)) {  // Main loop
+        //resize_shaders(thumbnail_width, thumbnail_height);
         while (!glfwWindowShouldClose(window)) {
-            // Poll and handle events (inputs, window resize, etc.)
-            // You can read the io.WantCaptureMouse, io.WantCaptureKeyboard flags to tell if dear imgui wants to use your inputs.
-            // - When io.WantCaptureMouse is true, do not dispatch mouse input data to your main application.
-            // - When io.WantCaptureKeyboard is true, do not dispatch keyboard input data to your main application.
-            // Generally you may always pass all inputs to dear imgui, and hide them from your application based on those two flags.
             glfwPollEvents();
 
             int display_w, display_h;
             glfwGetFramebufferSize(window, &display_w, &display_h);
 
-            render_shaders();
+            if (display_w > 0 && display_h > 0) {
+                glfwMakeContextCurrent(window);
+                render_shaders();
 
-            // Start the Dear ImGui frame
-            ImGui_ImplOpenGL3_NewFrame();
-            ImGui_ImplGlfw_NewFrame();
-            ImGui::NewFrame();
+                // Start the Dear ImGui frame
+                ImGui_ImplOpenGL3_NewFrame();
+                ImGui_ImplGlfw_NewFrame();
+                ImGui::NewFrame();
 
-            calc_imgui();
+                // Cpu Zone : prepare
+                calc_imgui();
+                ImGui::Render();
 
-            // Cpu Zone : prepare
-            ImGui::Render();
+                // GPU Zone : Rendering
+                glfwMakeContextCurrent(window);
+                glViewport(0, 0, display_w, display_h);
+                glClearColor(0.3f, 0.3f, 0.3f, 0.3f);
+                glClear(GL_COLOR_BUFFER_BIT);
+                ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
-            // GPU Zone : Rendering
-            glfwMakeContextCurrent(window);
-            glViewport(0, 0, display_w, display_h);
-            glClearColor(0.3f, 0.3f, 0.3f, 0.3f);
-            glClear(GL_COLOR_BUFFER_BIT);
-            ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
-
-            glfwSwapBuffers(window);
+                glfwSwapBuffers(window);
+            }
         }
-    }
-    
+    }    
 
     // Cleanup
     ImGui_ImplOpenGL3_Shutdown();

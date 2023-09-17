@@ -87,7 +87,7 @@ public:
             if (one_shader_at_least) {
                 glLinkProgram(m_ProgramId);
                 GLint linked = 0;
-                glGetShaderiv(m_ProgramId, GL_COMPILE_STATUS, &linked);
+                glGetShaderiv(m_ProgramId, GL_LINK_STATUS, &linked);
                 if (!linked) {
                     printProgramLogs(m_ProgramName, "Link Errors");
                     res = false;
@@ -124,7 +124,7 @@ private:
         assert(!vLogTypes.empty());
         if (m_ProgramId > 0U) {
             GLint infoLen = 0;
-            glGetProgramiv(m_ProgramId, GL_LINK_STATUS, &infoLen);
+            glGetProgramiv(m_ProgramId, GL_INFO_LOG_LENGTH, &infoLen);
             if (infoLen > 1) {
                 char* infoLog = new char[infoLen];
                 glGetProgramInfoLog(m_ProgramId, infoLen, nullptr, infoLog);

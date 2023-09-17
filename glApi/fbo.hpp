@@ -25,9 +25,10 @@ SOFTWARE.
 #pragma once
 
 #include <glad/glad.h>
+#include "glApi.hpp"
+
 #include <vector>
 #include <memory>
-#include "glApi.hpp"
 
 namespace glApi {
 
@@ -98,7 +99,7 @@ public:
     }
 
     void updateMipMaping() {
-        for (auto tex_ptr : m_Textures) {
+        for (auto& tex_ptr : m_Textures) {
             if (tex_ptr != nullptr) {
                 tex_ptr->updateMipMaping();
             }
@@ -109,6 +110,13 @@ public:
         glDrawBuffers(m_CountBuffers, m_ColorDrawBuffers);
     }
 
+    GLuint getTextureId(const size_t& vBufferIdx = 0U) {
+        if (m_Textures.size() > vBufferIdx) {
+            return m_Textures[vBufferIdx]->getTexId();
+        }
+        return 0U;
+    }
+    
     bool resize(const GLsizei& vNewSx, const GLsizei& vNewSy) {
         bool res = false;
         if (m_FBOId > 0) {

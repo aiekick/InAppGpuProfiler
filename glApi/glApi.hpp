@@ -24,7 +24,9 @@ SOFTWARE.
 
 #pragma once
 
-#include "shader.hpp"
-#include "program.hpp"
 #include "texture.hpp"
 #include "fbo.hpp"
+#include "mesh.hpp"
+#include "shader.hpp"
+#include "program.hpp"
+#include "quadVfx.hpp"

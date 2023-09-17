@@ -28,7 +28,9 @@ SOFTWARE.
 #include <vector>
 #include <memory>
 
-template<typename T>
+namespace glApi {
+
+template <typename T>
 class Mesh {
 private:
     std::weak_ptr<Mesh<T>> m_This;
@@ -38,9 +40,10 @@ private:
 
     std::vector<T> m_Vertices;
     std::vector<uint32_t> m_Indices;
+    std::vector<uint32_t> m_Format;
 
-    const GLsizei verticeSize = sizeof(T);
-    const GLsizei indiceSize = sizeof(uint32_t);
+    const GLsizei m_VerticeSize = sizeof(T);
+    const GLsizei m_IndiceSize = sizeof(uint32_t);
 
 public:
     static std::shared_ptr<Mesh<T>> create(std::vector<T> vVertices, std::vector<uint32_t> vIndices) {
@@ -53,6 +56,10 @@ public:
     }
 
 public:
+    Mesh() = default;
+    ~Mesh() {
+        unit();
+    }
     uint32_t GetVaoID() {
         return m_VboId;
     }
@@ -62,59 +69,77 @@ public:
     uint32_t GetIboID() {
         return m_VaoId;
     }
-    bool init(std::vector<T> vVertices, std::vector<uint32_t> vIndices) {
+    bool init(std::vector<T> vVertices, std::vector<uint32_t> vIndices, std::vector<uint32_t> vFormat) {
         assert(!vVertices.empty());
         assert(!vIndices.empty());
+        assert(!vFormat.empty());
+        m_Vertices = vVertices;
+        m_Indices = vIndices;
+        m_Format = vFormat;
         glGenVertexArrays(1, &m_VaoId);
         glGenBuffers(1, &m_VboId);
         glGenBuffers(1, &m_IboId);
 
+        // bind
         glBindVertexArray(m_VaoId);
         glBindBuffer(GL_ARRAY_BUFFER, m_VboId);
-        glBufferData(GL_ARRAY_BUFFER, verticeSize * vVertices.size(), vVertices.data(), GL_STATIC_DRAW);
+        glBufferData(GL_ARRAY_BUFFER, m_VerticeSize * m_Vertices.size(), m_Vertices.data(), GL_STATIC_DRAW);
 
-        // pos
-        glEnableVertexAttribArray(0);
-        LogGlError();
-        glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, m_MeshDatas.verticeSize, (void*)nullptr);
-        LogGlError();
-        glDisableVertexAttribArray(0);
-        LogGlError();
+        // vertices
 
-        // tex
-        glEnableVertexAttribArray(1);
-        LogGlError();
-        glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, m_MeshDatas.verticeSize, (void*)(sizeof(float) * 2));
-        LogGlError();
-        glDisableVertexAttribArray(1);
-        LogGlError();
-
-        if (!m_MeshDatas.m_Indices.empty()) {
-            SetIndicesCount(m_MeshDatas.m_Indices.size());
-            SetIndicesCountToShow(m_MeshDatas.m_Indices.size());
-
-            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_MeshDatas.m_Ibo);
-            LogGlError();
-
-            glBufferData(GL_ELEMENT_ARRAY_BUFFER, m_MeshDatas.indiceSize * m_MeshDatas.m_Indices.size(), m_MeshDatas.m_Indices.data(),
-                         GL_DYNAMIC_DRAW);
-            LogGlError();
+        GLuint idx = 0U;
+        GLuint offset = 0U;
+        for (const auto& format : m_Format) {
+            assert(format > 0U);
+            glEnableVertexAttribArray(idx);
+            if (idx == 0U) {
+                glVertexAttribPointer(offset, format, GL_FLOAT, GL_FALSE, m_VerticeSize, (void*)nullptr);
+            } else {
+                glVertexAttribPointer(offset, format, GL_FLOAT, GL_FALSE, m_VerticeSize, (void*)(sizeof(float) * format));
+            }
+            glDisableVertexAttribArray(idx);
+            offset += format;
         }
+
+        // indices
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_IboId);
+        glBufferData(GL_ELEMENT_ARRAY_BUFFER, m_IndiceSize * m_Indices.size(), m_Indices.data(), GL_STATIC_DRAW);
 
         // unbind
         glBindVertexArray(0);
-        LogGlError();
-        glBindBuffer(GL_ARRAY_BUFFER, 0);  // bien unbind les buffer apres le vao sinon le contexte est v�rol�
-        LogGlError();
-        if (!m_MeshDatas.m_Indices.empty()) {
-            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-            LogGlError();
-        }
+        glBindBuffer(GL_ARRAY_BUFFER, 0);
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 
+        return (glIsVertexArray(m_VaoId) == GL_TRUE);
+    }
+
+    bool bind() {
+        if (glIsVertexArray(m_VaoId) == GL_TRUE) {
+            glBindVertexArray(m_VaoId);
+            for (size_t idx = 0U; idx < m_Format.size(); ++idx) {
+                glEnableVertexAttribArray((GLuint)idx);
+            }
+            return true;
+        }
         return false;
     }
+
+    void unbind() {
+        for (size_t idx = 0U; idx < m_Format.size(); ++idx) {
+            glDisableVertexAttribArray((GLuint)idx);
+        }
+        glBindVertexArray(0);
+    }
+
+    void render(GLenum vRenderMode) {
+        if (bind()) {
+            glDrawElements(vRenderMode, (GLsizei)m_Indices.size(), GL_UNSIGNED_INT, nullptr);
+            unbind();
+        }
+    }
+
     void unit() {
-        if(m_VaoId > 0) {
+        if (m_VaoId > 0) {
             glDeleteVertexArrays(1, &m_VaoId);
             m_VaoId = 0U;
         }
@@ -128,3 +153,40 @@ public:
         }
     }
 };
+
+struct QuadDatas {
+    float p[2] = {};
+    float t[2] = {};
+    QuadDatas(const float& px, const float& py, const float& tx, const float& ty) : p{px, py}, t{tx, ty} {};
+};
+
+class QuadMesh;
+typedef std::shared_ptr<QuadMesh> QuadMeshPtr;
+typedef std::weak_ptr<QuadMesh> QuadMeshWeak;
+
+class QuadMesh : public Mesh<QuadDatas> {
+public:
+    static QuadMeshPtr create() {
+        auto res = std::make_shared<QuadMesh>();
+        res->m_This = res;
+
+        std::vector<QuadDatas> vertices = {
+            QuadDatas(-1.0f, -1.0f, 0.0f, 0.0f),
+            QuadDatas(1.0f, -1.0f, 1.0f, 0.0f),
+            QuadDatas(1.0f, 1.0f, 1.0f, 1.0f),
+            QuadDatas(-1.0f, 1.0f, 0.0f, 1.0f),
+        };
+
+        std::vector<uint32_t> indices = {0, 1, 2, 0, 2, 3};
+
+        if (!res->init(vertices, indices, {2, 2})) {
+            res.reset();
+        }
+        return res;
+    }
+
+private:
+    QuadMeshWeak m_This;
+};
+
+}  // namespace glApi
