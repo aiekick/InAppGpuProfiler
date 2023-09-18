@@ -119,8 +119,8 @@ public:
     void SetStartTimeStamp(const GLuint64& vValue);
     void SetEndTimeStamp(const GLuint64& vValue);
     void ComputeElapsedTime();
-    void DrawMetricLabels();
-    bool DrawMetricGraph(IAGPQueryZonePtr vParent = nullptr, uint32_t vDepth = 0);
+    void DrawDetails();
+    bool DrawFlamGraph(IAGPQueryZonePtr vParent = nullptr, uint32_t vDepth = 0);
 };
 
 class InAppGpuGLContext {
@@ -137,7 +137,8 @@ public:
     void Init();
     void Unit();
     void Collect();
-    void Draw();
+    void DrawFlamGraph();
+    void DrawDetails();
     IAGPQueryZonePtr GetQueryZoneForName(const std::string& vName, const std::string& vSection = "", const bool& vIsRoot = false);
 
 private:
@@ -171,7 +172,8 @@ public:
     void Init();
     void Unit();
     void Collect();
-    void Draw();
+    void DrawFlamGraph();
+    void DrawDetails();
     IAGPContextPtr GetContextPtr(GPU_CONTEXT vContext);
 
 public:

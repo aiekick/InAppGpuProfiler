@@ -272,13 +272,14 @@ void InAppGpuQueryZone::ComputeElapsedTime() {
     }
 }
 
-void InAppGpuQueryZone::DrawMetricLabels() {
+void InAppGpuQueryZone::DrawDetails() {
     if (m_StartFrameId) {
         bool res = false;
 
-        ImGuiTreeNodeFlags flags = 0;
+        ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_DefaultOpen;
+
         if (puZonesOrdered.empty())
-            flags = ImGuiTreeNodeFlags_Leaf;
+            flags |= ImGuiTreeNodeFlags_Leaf;
 
         if (m_Highlighted)
             flags |= ImGuiTreeNodeFlags_Framed;
@@ -299,7 +300,7 @@ void InAppGpuQueryZone::DrawMetricLabels() {
 
             for (const auto zone : puZonesOrdered) {
                 if (zone.use_count()) {
-                    zone->DrawMetricLabels();
+                    zone->DrawDetails();
                 }
             }
 
@@ -312,7 +313,7 @@ void InAppGpuQueryZone::DrawMetricLabels() {
     }
 }
 
-bool InAppGpuQueryZone::DrawMetricGraph(IAGPQueryZonePtr vParent, uint32_t vDepth) {
+bool InAppGpuQueryZone::DrawFlamGraph(IAGPQueryZonePtr vParent, uint32_t vDepth) {
     bool m_essed = false;
 
     ImGuiWindow* window = ImGui::GetCurrentWindow();
@@ -364,7 +365,7 @@ bool InAppGpuQueryZone::DrawMetricGraph(IAGPQueryZonePtr vParent, uint32_t vDept
 
             m_Highlighted = false;
             if (hovered) {
-                ImGui::SetTooltip("section %s : %s\nElapsed time : %.1f ms\nElapsed FPS : %.1f f/s", m_SectionName.c_str(), puName.c_str(),
+                ImGui::SetTooltip("section %s : %s\nElapsed time : %.05f ms\nElapsed FPS : %.05f f/s", m_SectionName.c_str(), puName.c_str(),
                                   m_ElapsedTime, 1000.0f / m_ElapsedTime);
                 m_Highlighted = true;  // to highlight label graph by this button
             } else if (m_Highlighted)
@@ -392,7 +393,7 @@ bool InAppGpuQueryZone::DrawMetricGraph(IAGPQueryZonePtr vParent, uint32_t vDept
         // childs
         for (const auto zone : puZonesOrdered) {
             if (zone.use_count()) {
-                m_essed |= zone->DrawMetricGraph(puThis, vDepth);
+                m_essed |= zone->DrawFlamGraph(puThis, vDepth);
             }
         }
     }
@@ -476,12 +477,15 @@ void InAppGpuGLContext::Collect() {
 #endif
 }
 
-void InAppGpuGLContext::Draw() {
+void InAppGpuGLContext::DrawFlamGraph() {
     if (m_RootZone.use_count()) {
-        m_RootZone->DrawMetricGraph();
-        if (!InAppGpuQueryZone::sShowLeafMode) {
-            //m_RootZone->DrawMetricLabels();
-        }
+        m_RootZone->DrawFlamGraph();
+    }
+}
+
+void InAppGpuGLContext::DrawDetails() {
+    if (m_RootZone.use_count()) {
+        m_RootZone->DrawDetails();
     }
 }
 
@@ -628,9 +632,10 @@ void InAppGpuProfiler::Collect() {
     }
 }
 
-void InAppGpuProfiler::Draw() {
-    if (!puIsActive)
+void InAppGpuProfiler::DrawFlamGraph() {
+    if (!puIsActive) {
         return;
+    }
 
     if (ImGui::BeginMenuBar()) {
         if (InAppGpuScopedZone::sMaxDepth) {
@@ -646,14 +651,27 @@ void InAppGpuProfiler::Draw() {
 
     for (const auto& con : m_Contexts) {
         if (con.second.use_count()) {
-            con.second->Draw();
+            con.second->DrawFlamGraph();
+        }
+    }
+}
+
+void InAppGpuProfiler::DrawDetails() {
+    if (!puIsActive) {
+        return;
+    }
+
+    for (const auto& con : m_Contexts) {
+        if (con.second.use_count()) {
+            con.second->DrawDetails();
         }
     }
 }
 
 IAGPContextPtr InAppGpuProfiler::GetContextPtr(GPU_CONTEXT vThreadPtr) {
-    if (!puIsActive)
+    if (!puIsActive) {
         return nullptr;
+    }
 
     if (vThreadPtr != nullptr) {
         if (m_Contexts.find((intptr_t)vThreadPtr) == m_Contexts.end()) {
