@@ -10,14 +10,29 @@ layout(location = 0) in vec2 vUV;
 uniform float iTime;
 uniform vec3 iResolution;
 
-#define _c vec2(0.9240,0)
-#define _niter 100
-#define _k 0.25912
-#define _scale 2.2
-#define _limit 0.03
-#define _dist 8.
-#define _color vec3(1,0,1)
-#define _colorVar vec2(3,1.51)
+//uniform vec2(0.0:1.0:0.924,0.) _c;
+uniform vec2 _c;
+
+//uniform int(0:200:100) _niter;
+uniform  int _niter;
+
+//uniform float(0.0:1.0:0.25912) _k;
+uniform float _k;
+
+//uniform float(0.0:5.0:2.2) _scale;
+uniform float _scale;
+
+//uniform float(0.0:.5:0.03) _limit;
+uniform float _limit;
+
+//uniform float(0.0:100.0:8.) _dist;
+uniform float _dist;
+
+//uniform vec3(color:1,0,1) _color;
+uniform vec3 _color;
+
+//uniform vec2(0:5:3,1.51) _colorVar;
+uniform vec2 _colorVar;
 
 vec2 zmul(vec2 a, vec2 b){return mat2(a,-a.y,a.x)*b;} // z * z 
 vec2 zinv(vec2 a){return vec2(a.x, -a.y) / dot(a,a);} // 1 / z

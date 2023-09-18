@@ -39,6 +39,10 @@ typedef std::weak_ptr<Program> ProgramWeak;
 
 class Program {
 public:
+    struct Uniform;
+    typedef std::map<GLenum, std::map<std::string, Uniform>> UniformPerShaderTypeContainer;
+    typedef std::function<void(FBOPipeLinePtr, Uniform&)> UniformPreUploadFunctor;
+    typedef std::function<void(Uniform&)> UniformWidgetFunctor;
     struct Uniform {
         std::string name;
         float* datas_f = nullptr;    // float
@@ -48,15 +52,14 @@ public:
         GLuint channels = 1U;
         bool used = false;
         bool showed = false;
+        UniformWidgetFunctor widgetFunctor = nullptr;
     };
-    typedef std::map<GLenum, std::map<std::string, Uniform>> UniformPerShaderTypeContainer;
-    typedef std::function<void(FBOPipeLinePtr, Uniform&)> UniformPreUploadFunctor;
 
 private:
     ProgramWeak m_This;
     GLuint m_ProgramId = 0U;
     std::string m_ProgramName;
-    std::map<uintptr_t, ShaderWeak> m_Shaders; // a same shader object can be added two times
+    std::map<uintptr_t, ShaderWeak> m_Shaders;  // a same shader object can be added two times
     UniformPerShaderTypeContainer m_Uniforms;
     UniformPreUploadFunctor m_UniformPreUploadFunctor = nullptr;  // lmanda to execute just before the uniform upload
 
@@ -92,7 +95,7 @@ public:
             return true;
         }
         return false;
-    }    
+    }
     bool link() {
         bool res = false;
         if (m_ProgramId > 0U) {
@@ -125,12 +128,13 @@ public:
                 }
             }
         }
-        return res;    
+        return res;
     }
     void setUniformPreUploadFunctor(UniformPreUploadFunctor vUniformPreUploadFunctor) {
         m_UniformPreUploadFunctor = vUniformPreUploadFunctor;
     }
-    void addUniformFloat(const GLenum& vShaderType, const std::string& vUniformName, float* vUniformPtr, const GLuint& vCountChannels, const bool& vShowWidget) {
+    void addUniformFloat(const GLenum& vShaderType, const std::string& vUniformName, float* vUniformPtr, const GLuint& vCountChannels,
+                         const bool& vShowWidget, const UniformWidgetFunctor& vWidgetFunctor) {
         assert(vShaderType > 0);
         assert(!vUniformName.empty());
         assert(vUniformPtr != nullptr);
@@ -140,10 +144,11 @@ public:
         uni.datas_f = vUniformPtr;
         uni.showed = vShowWidget;
         uni.channels = vCountChannels;
+        uni.widgetFunctor = vWidgetFunctor;
         m_Uniforms[vShaderType][vUniformName] = uni;
     }
     void addUniformInt(const GLenum& vShaderType, const std::string& vUniformName, int32_t* vUniformPtr, const GLuint& vCountChannels,
-                    const bool& vShowWidget) {
+                       const bool& vShowWidget, const UniformWidgetFunctor& vWidgetFunctor) {
         assert(vShaderType > 0);
         assert(!vUniformName.empty());
         assert(vUniformPtr != nullptr);
@@ -153,20 +158,19 @@ public:
         uni.datas_i = vUniformPtr;
         uni.showed = vShowWidget;
         uni.channels = vCountChannels;
+        uni.widgetFunctor = vWidgetFunctor;
         m_Uniforms[vShaderType][vUniformName] = uni;
     }
-    void addUniformSampler2D(const GLenum& vShaderType, const std::string& vUniformName, int32_t vSampler2D,
-                    const bool& vShowWidget) {
+    void addUniformSampler2D(const GLenum& vShaderType, const std::string& vUniformName, int32_t vSampler2D) {
         assert(vShaderType > 0);
         assert(!vUniformName.empty());
-        //assert(vSampler2D != -1);, if the sampler must point on a buffer after, its normal to have it at -1
+        // assert(vSampler2D != -1);, if the sampler must point on a buffer after, its normal to have it at -1
         Uniform uni;
         uni.name = vUniformName;
         uni.data_s2d = vSampler2D;
-        uni.showed = vShowWidget;
         uni.channels = 0;
         m_Uniforms[vShaderType][vUniformName] = uni;
-    }    
+    }
     void uploadUniforms(FBOPipeLinePtr vFBOPipeLinePtr) {
         AIGPScoped(m_ProgramName, "uploadUniforms");
         int32_t textureSlotId = 0;
@@ -217,19 +221,23 @@ public:
                 ImGui::Indent();
                 for (auto& uni : shader_type.second) {
                     if (uni.second.showed && uni.second.used) {
-                        if (uni.second.datas_f != nullptr) {
-                            switch (uni.second.channels) {
-                                case 1U: ImGui::DragFloat(uni.second.name.c_str(), uni.second.datas_f); break;
-                                case 2U: ImGui::DragFloat2(uni.second.name.c_str(), uni.second.datas_f); break;
-                                case 3U: ImGui::DragFloat3(uni.second.name.c_str(), uni.second.datas_f); break;
-                                case 4U: ImGui::DragFloat4(uni.second.name.c_str(), uni.second.datas_f); break;
-                            }
-                        } else if (uni.second.datas_i != nullptr) {
-                            switch (uni.second.channels) {
-                                case 1U: ImGui::DragInt(uni.second.name.c_str(), uni.second.datas_i); break;
-                                case 2U: ImGui::DragInt2(uni.second.name.c_str(), uni.second.datas_i); break;
-                                case 3U: ImGui::DragInt3(uni.second.name.c_str(), uni.second.datas_i); break;
-                                case 4U: ImGui::DragInt4(uni.second.name.c_str(), uni.second.datas_i); break;
+                        if (uni.second.widgetFunctor != nullptr) {
+                            uni.second.widgetFunctor(uni.second);
+                        } else {
+                            if (uni.second.datas_f != nullptr) {
+                                switch (uni.second.channels) {
+                                    case 1U: ImGui::DragFloat(uni.second.name.c_str(), uni.second.datas_f); break;
+                                    case 2U: ImGui::DragFloat2(uni.second.name.c_str(), uni.second.datas_f); break;
+                                    case 3U: ImGui::DragFloat3(uni.second.name.c_str(), uni.second.datas_f); break;
+                                    case 4U: ImGui::DragFloat4(uni.second.name.c_str(), uni.second.datas_f); break;
+                                }
+                            } else if (uni.second.datas_i != nullptr) {
+                                switch (uni.second.channels) {
+                                    case 1U: ImGui::DragInt(uni.second.name.c_str(), uni.second.datas_i); break;
+                                    case 2U: ImGui::DragInt2(uni.second.name.c_str(), uni.second.datas_i); break;
+                                    case 3U: ImGui::DragInt3(uni.second.name.c_str(), uni.second.datas_i); break;
+                                    case 4U: ImGui::DragInt4(uni.second.name.c_str(), uni.second.datas_i); break;
+                                }
                             }
                         }
                     }

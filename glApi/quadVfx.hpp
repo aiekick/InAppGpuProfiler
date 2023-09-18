@@ -57,18 +57,19 @@ private:
     GLsizei m_SizeY = 0;
     bool m_UseMipMapping = false;
     bool m_MultiPass = false;
+    GLuint m_RenderIterations = 1U;
 
 public:
-    static QuadVfxPtr create(          //
-        const std::string& vName,      //
-        ShaderWeak vVertShader,        //
-        QuadMeshWeak vQuadMesh,        //
-        const std::string& vFragFile,  //
-        const GLsizei& vSx,            //
-        const GLsizei& vSy,            //
-        const uint32_t& vCountBuffers,//
-        const bool& vUseMipMapping,//
-        const bool& vMultiPass) {  //
+    static QuadVfxPtr create(           //
+        const std::string& vName,       //
+        ShaderWeak vVertShader,         //
+        QuadMeshWeak vQuadMesh,         //
+        const std::string& vFragFile,   //
+        const GLsizei& vSx,             //
+        const GLsizei& vSy,             //
+        const uint32_t& vCountBuffers,  //
+        const bool& vUseMipMapping,     //
+        const bool& vMultiPass) {       //
         auto res = std::make_shared<QuadVfx>();
         res->m_This = res;
         if (!res->init(vName, vVertShader, vQuadMesh, vFragFile, vSx, vSy, vCountBuffers, vUseMipMapping, vMultiPass)) {
@@ -83,16 +84,16 @@ public:
         unit();
     }
 
-    bool init(                         //
-        const std::string& vName,      //
-        ShaderWeak vVertShader,        //
-        QuadMeshWeak vQuadMesh,        //
-        const std::string& vFragFile,  //
-        const GLsizei& vSx,            //
-        const GLsizei& vSy,            //
-        const uint32_t& vCountBuffers, //
-        const bool& vUseMipMapping,//
-        const bool& vMultiPass) {  //
+    bool init(                          //
+        const std::string& vName,       //
+        ShaderWeak vVertShader,         //
+        QuadMeshWeak vQuadMesh,         //
+        const std::string& vFragFile,   //
+        const GLsizei& vSx,             //
+        const GLsizei& vSy,             //
+        const uint32_t& vCountBuffers,  //
+        const bool& vUseMipMapping,     //
+        const bool& vMultiPass) {       //
         assert(!vVertShader.expired());
         assert(!vQuadMesh.expired());
         assert(!vFragFile.empty());
@@ -122,6 +123,9 @@ public:
         }
         return false;
     }
+    void setRenderingIterations(const GLuint& vRenderingIterations) {
+        m_RenderIterations = vRenderingIterations;
+    }
     void setUniformPreUploadFunctor(Program::UniformPreUploadFunctor vUniformPreUploadFunctor) {
         assert(m_ProgramPtr != nullptr);
         m_ProgramPtr->setUniformPreUploadFunctor(vUniformPreUploadFunctor);
@@ -131,18 +135,20 @@ public:
         const std::string& vUniformName,  //
         float* vUniformPtr,               //
         const size_t& vCountChannels,     //
-        const bool& vShowWidget) {
+        const bool& vShowWidget,          //
+        const Program::UniformWidgetFunctor& vWidgetFunctor) {
         assert(m_ProgramPtr != nullptr);
-        m_ProgramPtr->addUniformFloat(vShaderType, vUniformName, vUniformPtr, vCountChannels, vShowWidget);
+        m_ProgramPtr->addUniformFloat(vShaderType, vUniformName, vUniformPtr, vCountChannels, vShowWidget, vWidgetFunctor);
     }
     void addUniformInt(                   //
         const GLenum& vShaderType,        //
         const std::string& vUniformName,  //
         int32_t* vUniformPtr,             //
         const size_t& vCountChannels,     //
-        const bool& vShowWidget) {
+        const bool& vShowWidget,          //
+        const Program::UniformWidgetFunctor& vWidgetFunctor) {
         assert(m_ProgramPtr != nullptr);
-        m_ProgramPtr->addUniformInt(vShaderType, vUniformName, vUniformPtr, vCountChannels, vShowWidget);
+        m_ProgramPtr->addUniformInt(vShaderType, vUniformName, vUniformPtr, vCountChannels, vShowWidget, vWidgetFunctor);
     }
     void addUniformSampler2D(             //
         const GLenum& vShaderType,        //
@@ -150,7 +156,7 @@ public:
         int32_t vSampler2D,               //
         const bool& vShowWidget) {
         assert(m_ProgramPtr != nullptr);
-        m_ProgramPtr->addUniformSampler2D(vShaderType, vUniformName, vSampler2D, vShowWidget);
+        m_ProgramPtr->addUniformSampler2D(vShaderType, vUniformName, vSampler2D);
     }
     void finalizeBeforeRendering() {
         assert(m_ProgramPtr != nullptr);
@@ -169,17 +175,20 @@ public:
         assert(quad_ptr != nullptr);
         assert(m_FBOPipeLinePtr != nullptr);
         assert(m_ProgramPtr != nullptr);
-        if (m_FBOPipeLinePtr->bind()) {
-            if (m_ProgramPtr->use()) {
-                m_ProgramPtr->uploadUniforms(m_FBOPipeLinePtr);
-                m_FBOPipeLinePtr->selectBuffers();
-                m_FBOPipeLinePtr->clearColorAttachments();
-                declareViewPort();
-                quad_ptr->render(GL_TRIANGLES);
-                m_FBOPipeLinePtr->updateMipMaping();
-                m_ProgramPtr->unuse();
+        for (GLuint idx = 0; idx < m_RenderIterations; ++idx) {
+            AIGPScoped("VFX", "Iter %i", idx);
+            if (m_FBOPipeLinePtr->bind()) {
+                if (m_ProgramPtr->use()) {
+                    m_ProgramPtr->uploadUniforms(m_FBOPipeLinePtr);
+                    m_FBOPipeLinePtr->selectBuffers();
+                    m_FBOPipeLinePtr->clearColorAttachments();
+                    declareViewPort();
+                    quad_ptr->render(GL_TRIANGLES);
+                    m_FBOPipeLinePtr->updateMipMaping();
+                    m_ProgramPtr->unuse();
+                }
+                m_FBOPipeLinePtr->unbind();
             }
-            m_FBOPipeLinePtr->unbind();
         }
     }
     void drawImGuiThumbnail() {
@@ -188,7 +197,7 @@ public:
         if (front_fbo_ptr != nullptr) {
             const auto texId = front_fbo_ptr->getTextureId();
             if (texId > 0U) {
-                ImGui::Image((ImTextureID)texId, ImVec2((float)m_SizeX, (float)m_SizeY), ImVec2(0,1), ImVec2(1,0));
+                ImGui::Image((ImTextureID)texId, ImVec2((float)m_SizeX, (float)m_SizeY), ImVec2(0, 1), ImVec2(1, 0));
             }
         }
     }
