@@ -59,32 +59,66 @@ namespace iagp {
 
 class InAppGpuQueryZone;
 typedef std::shared_ptr<InAppGpuQueryZone> IAGPQueryZonePtr;
+typedef std::weak_ptr<InAppGpuQueryZone> IAGPQueryZoneWeak;
 
 class InAppGpuGLContext;
 typedef std::shared_ptr<InAppGpuGLContext> IAGPContextPtr;
 
+template<typename T>
 class InAppGpuAverageValue {
 private:
     static constexpr uint32_t sCountAverageValues = 60U;
-    double m_PerFrame[sCountAverageValues] = {};
-    int m_PerFrameIdx = 0;
-    double m_PerFrameAccum = 0.0;
-    double m_AverageValue = 0.0;
+    T m_PerFrame[sCountAverageValues] = {};
+    int m_PerFrameIdx = (T)0;
+    T m_PerFrameAccum = (T)0;
+    T m_AverageValue = (T)0;
 
 public:
     InAppGpuAverageValue();
-    void AddValue(double vValue);
-    double GetAverage();
+    void AddValue(T vValue);
+    T GetAverage();
 };
 
-class InAppGpuQueryZone {
+template <typename T>
+InAppGpuAverageValue<T>::InAppGpuAverageValue() {
+    memset(m_PerFrame, 0, sizeof(T) * sCountAverageValues);
+    m_PerFrameIdx = (T)0;
+    m_PerFrameAccum = (T)0;
+    m_AverageValue = (T)0;
+}
+
+template <typename T>
+void InAppGpuAverageValue<T>::AddValue(T vValue) {
+    if (vValue < m_PerFrame[m_PerFrameIdx]) {
+        memset(m_PerFrame, 0, sizeof(T) * sCountAverageValues);
+        m_PerFrameIdx = (T)0;
+        m_PerFrameAccum = (T)0;
+        m_AverageValue = (T)0;
+    }
+    m_PerFrameAccum += vValue - m_PerFrame[m_PerFrameIdx];
+    m_PerFrame[m_PerFrameIdx] = vValue;
+    m_PerFrameIdx = (m_PerFrameIdx + (T)1) % sCountAverageValues;
+    if (m_PerFrameAccum > (T)0) {
+        m_AverageValue = m_PerFrameAccum / (T)sCountAverageValues;
+    }
+}
+
+template <typename T>
+T InAppGpuAverageValue<T>::GetAverage() {
+    return m_AverageValue;
+}
+
+class IN_APP_GPU_PROFILER_API InAppGpuQueryZone {
 public:
     static GLuint sMaxDepthToOpen;
     static bool sShowLeafMode;
     static float sContrastRatio;
     static bool sActivateLogger;
+    static std::vector<IAGPQueryZoneWeak> sTabbedQueryZones;
+    static IAGPQueryZonePtr create(GPU_CONTEXT vContext, const std::string& vName, const std::string& vSectionName, const bool& vIsRoot = false);
 
 public:
+    IAGPQueryZoneWeak m_This;
     GLuint puDepth = 0U;  // the puDepth of the QueryZone
     GLuint puIds[2] = {0U, 0U};
     std::vector<IAGPQueryZonePtr> puZonesOrdered;
@@ -104,15 +138,18 @@ private:
     GLuint64 m_EndTimeStamp = 0;
     bool m_Expanded = false;
     bool m_Highlighted = false;
-    InAppGpuAverageValue m_AverageStartValue;
-    InAppGpuAverageValue m_AverageEndValue;
+    InAppGpuAverageValue<GLuint64> m_AverageStartValue;
+    InAppGpuAverageValue<GLuint64> m_AverageEndValue;
     GPU_CONTEXT m_Context;
     std::string m_BarLabel;
     std::string m_SectionName;
     float m_BarWidth = 0.0f;
     float m_BarPos = 0.0f;
+    ImVec4 cv4;
+    ImVec4 hsv;
 
 public:
+    InAppGpuQueryZone() = default;
     InAppGpuQueryZone(GPU_CONTEXT vContext, const std::string& vName, const std::string& vSectionName, const bool& vIsRoot = false);
     ~InAppGpuQueryZone();
     void Clear();
@@ -123,7 +160,7 @@ public:
     bool DrawFlamGraph(IAGPQueryZonePtr vParent = nullptr, uint32_t vDepth = 0);
 };
 
-class InAppGpuGLContext {
+class IN_APP_GPU_PROFILER_API InAppGpuGLContext {
 private:
     GPU_CONTEXT m_Context;
     IAGPQueryZonePtr m_RootZone = nullptr;

@@ -160,32 +160,6 @@ static std::string toStr(const char* fmt, ...) {
     return std::string();
 }
 
-InAppGpuAverageValue::InAppGpuAverageValue() {
-    memset(m_PerFrame, 0, sizeof(double) * sCountAverageValues);
-    m_PerFrameIdx = 0;
-    m_PerFrameAccum = 0.0;
-    m_AverageValue = 0.0;
-}
-
-void InAppGpuAverageValue::AddValue(double vValue) {
-    if (vValue < m_PerFrame[m_PerFrameIdx]) {
-        memset(m_PerFrame, 0, sizeof(double) * sCountAverageValues);
-        m_PerFrameIdx = 0;
-        m_PerFrameAccum = 0.0;
-        m_AverageValue = 0.0;
-    }
-    m_PerFrameAccum += vValue - m_PerFrame[m_PerFrameIdx];
-    m_PerFrame[m_PerFrameIdx] = vValue;
-    m_PerFrameIdx = (m_PerFrameIdx + 1) % sCountAverageValues;
-    if (m_PerFrameAccum > 0.0) {
-        m_AverageValue = m_PerFrameAccum / (double)sCountAverageValues;
-    }
-}
-
-double InAppGpuAverageValue::GetAverage() {
-    return m_AverageValue;
-}
-
 ////////////////////////////////////////////////////////////
 /////////////////////// QUERY ZONE /////////////////////////
 ////////////////////////////////////////////////////////////
@@ -194,6 +168,13 @@ GLuint InAppGpuQueryZone::sMaxDepthToOpen = 100U;  // the max by default
 bool InAppGpuQueryZone::sShowLeafMode = false;
 float InAppGpuQueryZone::sContrastRatio = 4.3f;
 bool InAppGpuQueryZone::sActivateLogger = false;
+std::vector<IAGPQueryZoneWeak> InAppGpuQueryZone::sTabbedQueryZones = {};
+IAGPQueryZonePtr InAppGpuQueryZone::create(GPU_CONTEXT vContext, const std::string& vName, const std::string& vSectionName,
+                                           const bool& vIsRoot) {
+    auto res = std::make_shared<InAppGpuQueryZone>(vContext, vName, vSectionName, vIsRoot);
+    res->m_This = res;
+    return res;
+}
 
 InAppGpuQueryZone::InAppGpuQueryZone(GPU_CONTEXT vContext, const std::string& vName, const std::string& vSectionName, const bool& vIsRoot)
     : m_Context(vContext), puName(vName), m_IsRoot(vIsRoot), m_SectionName(vSectionName) {
@@ -264,10 +245,13 @@ void InAppGpuQueryZone::SetEndTimeStamp(const GLuint64& vValue) {
 void InAppGpuQueryZone::ComputeElapsedTime() {
     // we take the last frame
     if (m_StartFrameId == m_EndFrameId) {
-        m_AverageStartValue.AddValue((double)(m_StartTimeStamp * 1e-6));  // ns to ms
-        m_AverageEndValue.AddValue((double)(m_EndTimeStamp * 1e-6));      // ns to ms
-        m_StartTime = m_AverageStartValue.GetAverage();
-        m_EndTime = m_AverageEndValue.GetAverage();
+        m_AverageStartValue.AddValue(m_StartTimeStamp);  // ns to ms
+        m_AverageEndValue.AddValue(m_EndTimeStamp);      // ns to ms
+        m_StartTime = (double)(m_AverageStartValue.GetAverage() * 1e-6);
+        m_EndTime = (double)(m_AverageEndValue.GetAverage() * 1e-6);
+
+        //m_StartTime = (double)(m_StartTimeStamp * 1e-6);
+        //m_EndTime = (double)(m_EndTimeStamp * 1e-6);
         m_ElapsedTime = m_EndTime - m_StartTime;
     }
 }
@@ -275,6 +259,8 @@ void InAppGpuQueryZone::ComputeElapsedTime() {
 void InAppGpuQueryZone::DrawDetails() {
     if (m_StartFrameId) {
         bool res = false;
+
+        ImGui::TableNextColumn(); // tree
 
         ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_DefaultOpen;
 
@@ -292,6 +278,13 @@ void InAppGpuQueryZone::DrawDetails() {
 
         if (ImGui::IsItemHovered())
             m_Highlighted = true;
+
+        ImGui::TableNextColumn();  // start time
+        ImGui::Text("%.5f", m_StartTime);
+        ImGui::TableNextColumn();  // end time
+        ImGui::Text("%.5f", m_EndTime);
+        ImGui::TableNextColumn();  // Elapsed time
+        ImGui::Text("%.5f", m_ElapsedTime);
 
         if (res) {
             m_Expanded = true;
@@ -314,18 +307,18 @@ void InAppGpuQueryZone::DrawDetails() {
 }
 
 bool InAppGpuQueryZone::DrawFlamGraph(IAGPQueryZonePtr vParent, uint32_t vDepth) {
-    bool m_essed = false;
+    bool pressed = false;
 
     ImGuiWindow* window = ImGui::GetCurrentWindow();
     if (window->SkipItems /* || !m_StartFrameId*/)
-        return m_essed;
+        return pressed;
 
     const ImGuiContext& g = *GImGui;
     const ImGuiStyle& style = g.Style;
     const float aw = ImGui::GetContentRegionAvail().x - style.FramePadding.x;
 
     if (puDepth > InAppGpuQueryZone::sMaxDepthToOpen)
-        return m_essed;
+        return pressed;
 
     if (!vParent.use_count()) {
         vParent = puThis;
@@ -338,62 +331,89 @@ bool InAppGpuQueryZone::DrawFlamGraph(IAGPQueryZonePtr vParent, uint32_t vDepth)
             m_BarPos = 0.0f;
         } else if (vParent->m_ElapsedTime > 0.0) {
             puTopQuery = vParent->puTopQuery;
+            ////////////////////////////////////////////////////////
+            // for correct rouninding isssue with average values
+            if (vParent->m_StartTime > m_StartTime) {
+                m_StartTime = vParent->m_StartTime;
+            }
+            if (vParent->m_EndTime < m_EndTime) {
+                m_EndTime = vParent->m_EndTime;
+            }
+            if (m_EndTime < m_StartTime) {
+                m_EndTime = m_StartTime;
+            }
+            m_ElapsedTime = m_EndTime - m_StartTime;
+            if (m_ElapsedTime < 0.0) {
+                DEBUG_BREAK;
+            }
+            if (m_ElapsedTime > vParent->m_ElapsedTime) {
+                m_ElapsedTime = vParent->m_ElapsedTime;
+            }
+            ////////////////////////////////////////////////////////
             const float startRatio = (float)((m_StartTime - vParent->m_StartTime) / vParent->m_ElapsedTime);
             const float elapsedRatio = (float)(m_ElapsedTime / vParent->m_ElapsedTime);
             m_BarWidth = vParent->m_BarWidth * elapsedRatio;
             m_BarPos = vParent->m_BarPos + vParent->m_BarWidth * startRatio;
         }
 
-        if ((puZonesOrdered.empty() && InAppGpuQueryZone::sShowLeafMode) || !InAppGpuQueryZone::sShowLeafMode) {
-            ImGui::PushID(this);
-            m_BarLabel = toStr("%s (%.1f ms | %.1f f/s)", puName.c_str(), m_ElapsedTime, 1000.0f / m_ElapsedTime);
-            const char* label = m_BarLabel.c_str();
-            const ImGuiID id = window->GetID(label);
-            ImGui::PopID();
+        if (m_BarWidth > 0.0f) {
+            if ((puZonesOrdered.empty() && InAppGpuQueryZone::sShowLeafMode) || !InAppGpuQueryZone::sShowLeafMode) {
+                ImGui::PushID(this);
+                m_BarLabel = toStr("%s (%.1f ms | %.1f f/s)", puName.c_str(), m_ElapsedTime, 1000.0f / m_ElapsedTime);
+                const char* label = m_BarLabel.c_str();
+                const ImGuiID id = window->GetID(label);
+                ImGui::PopID();
 
-            const ImVec2 label_size = ImGui::CalcTextSize(label, nullptr, true);
-            const float height = label_size.y + style.FramePadding.y * 2.0f;
-            const ImVec2 bPos = ImVec2(m_BarPos + style.FramePadding.x, vDepth * height + style.FramePadding.y);
-            const ImVec2 bSize = ImVec2(m_BarWidth - style.FramePadding.x, 0.0f);
+                const ImVec2 label_size = ImGui::CalcTextSize(label, nullptr, true);
+                const float height = label_size.y + style.FramePadding.y * 2.0f;
+                const ImVec2 bPos = ImVec2(m_BarPos + style.FramePadding.x, vDepth * height + style.FramePadding.y);
+                const ImVec2 bSize = ImVec2(m_BarWidth - style.FramePadding.x, 0.0f);
 
-            const ImVec2 pos = window->DC.CursorPos + bPos;
-            const ImVec2 size = ImVec2(m_BarWidth, height);
+                const ImVec2 pos = window->DC.CursorPos + bPos;
+                const ImVec2 size = ImVec2(m_BarWidth, height);
 
-            const ImRect bb(pos, pos + size);
-            bool hovered, held;
-            m_essed = ImGui::ButtonBehavior(bb, id, &hovered, &held, ImGuiButtonFlags_PressedOnClick);
+                const ImRect bb(pos, pos + size);
+                bool hovered, held;
+                pressed = ImGui::ButtonBehavior(bb, id, &hovered, &held, ImGuiButtonFlags_PressedOnClick);
+                if (pressed) {
+                    sTabbedQueryZones.push_back(m_This);
+                }
+                m_Highlighted = false;
+                if (hovered) {
+                    ImGui::SetTooltip("section %s : %s\nElapsed time : %.05f ms\nElapsed FPS : %.05f f/s", //
+                        m_SectionName.c_str(), puName.c_str(), m_ElapsedTime, 1000.0f / m_ElapsedTime);
+                    m_Highlighted = true;  // to highlight label graph by this button
+                } else if (m_Highlighted)
+                    hovered = true;  // highlight this button by the label graph
 
-            m_Highlighted = false;
-            if (hovered) {
-                ImGui::SetTooltip("section %s : %s\nElapsed time : %.05f ms\nElapsed FPS : %.05f f/s", m_SectionName.c_str(), puName.c_str(),
-                                  m_ElapsedTime, 1000.0f / m_ElapsedTime);
-                m_Highlighted = true;  // to highlight label graph by this button
-            } else if (m_Highlighted)
-                hovered = true;  // highlight this button by the label graph
-
-            // Render
-            // const ImU32 col = ImGui::GetColorU32((held && hovered) ? ImGuiCol_ButtonActive : hovered ? ImGuiCol_ButtonHovered : ImGuiCol_Button);
-            ImVec4 cv4, hsv = ImVec4((float)(0.5 - m_ElapsedTime * 0.5 / puTopQuery->m_ElapsedTime), 0.5f, 1.0f, 1.0f);
-            ImGui::ColorConvertHSVtoRGB(hsv.x, hsv.y, hsv.z, cv4.x, cv4.y, cv4.z);
-            cv4.w = 1.0f;
-            ImGui::RenderNavHighlight(bb, id);
-            ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 1.0f);
-            ImGui::RenderFrame(bb.Min, bb.Max, ImGui::ColorConvertFloat4ToU32(cv4), true, 2.0f);
-            ImGui::PopStyleVar();
-            const bool pushed = PushStyleColorWithContrast(//
-                ImGui::ColorConvertFloat4ToU32(cv4), ImGuiCol_Text, ImVec4(0, 0, 0, 1), InAppGpuQueryZone::sContrastRatio);
-            ImGui::RenderTextClipped(bb.Min + style.FramePadding, bb.Max - style.FramePadding, label, nullptr, &label_size,
-                                     ImVec2(0.5f, 0.5f) /*style.ButtonTextAlign*/, &bb);
-            if (pushed) {
-                ImGui::PopStyleColor();
+                // Render
+                if (puTopQuery != nullptr) {
+                    hsv = ImVec4((float)(0.5 - m_ElapsedTime * 0.5 / puTopQuery->m_ElapsedTime), 0.5f, 1.0f, 1.0f);
+                } else {
+                    DEBUG_BREAK;
+                }
+                ImGui::ColorConvertHSVtoRGB(hsv.x, hsv.y, hsv.z, cv4.x, cv4.y, cv4.z);
+                cv4.w = 1.0f;
+                ImGui::RenderNavHighlight(bb, id);
+                ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 1.0f);
+                ImGui::RenderFrame(bb.Min, bb.Max, ImGui::ColorConvertFloat4ToU32(cv4), true, 2.0f);
+                ImGui::PopStyleVar();
+                const bool pushed = PushStyleColorWithContrast(  //
+                    ImGui::ColorConvertFloat4ToU32(cv4), ImGuiCol_Text, ImVec4(0, 0, 0, 1), InAppGpuQueryZone::sContrastRatio);
+                ImGui::RenderTextClipped(bb.Min + style.FramePadding, bb.Max - style.FramePadding, label, nullptr, &label_size,
+                                         ImVec2(0.5f, 0.5f) /*style.ButtonTextAlign*/, &bb);
+                if (pushed) {
+                    ImGui::PopStyleColor();
+                }
+                ++vDepth;
             }
-            ++vDepth;
-        }
 
-        // childs
-        for (const auto zone : puZonesOrdered) {
-            if (zone.use_count()) {
-                m_essed |= zone->DrawFlamGraph(puThis, vDepth);
+            // we dont show child if this one have elapsed time to 0.0
+            // childs
+            for (const auto zone : puZonesOrdered) {
+                if (zone.use_count()) {
+                    pressed |= zone->DrawFlamGraph(puThis, vDepth);
+                }
             }
         }
     }
@@ -406,10 +426,10 @@ bool InAppGpuQueryZone::DrawFlamGraph(IAGPQueryZonePtr vParent, uint32_t vDepth)
         const ImRect bb(pos, pos + size);
         const ImGuiID id = window->GetID((puName + "##canvas").c_str());
         if (!ImGui::ItemAdd(bb, id))
-            return m_essed;
+            return pressed;
     }
 
-    return m_essed;
+    return pressed;
 }
 
 ////////////////////////////////////////////////////////////
@@ -527,7 +547,7 @@ IAGPQueryZonePtr InAppGpuGLContext::GetQueryZoneForName(const std::string& vName
         auto root = GetQueryZoneFromDepth(InAppGpuScopedZone::sCurrentDepth - 1U);
         if (root.use_count()) {
             if (root->puZonesDico.find(vName) == root->puZonesDico.end()) {  // not found
-                res = std::make_shared<InAppGpuQueryZone>(m_Context, vName, vSection, vIsRoot);
+                res = InAppGpuQueryZone::create(m_Context, vName, vSection, vIsRoot);
                 if (res.use_count()) {
                     res->puThis = res;
                     res->puDepth = InAppGpuScopedZone::sCurrentDepth;
@@ -661,10 +681,27 @@ void InAppGpuProfiler::DrawDetails() {
         return;
     }
 
-    for (const auto& con : m_Contexts) {
-        if (con.second.use_count()) {
-            con.second->DrawDetails();
+    const auto& size = ImGui::GetContentRegionAvail();
+
+    static ImGuiTableFlags flags = ImGuiTableFlags_SizingFixedFit | ImGuiTableFlags_RowBg | ImGuiTableFlags_Hideable | ImGuiTableFlags_ScrollY |
+        ImGuiTableFlags_NoHostExtendY
+#ifndef USE_CUSTOM_SORTING_ICON
+        | ImGuiTableFlags_Sortable
+#endif  // USE_CUSTOM_SORTING_ICON
+        ;
+    auto listViewID = ImGui::GetID("##InAppGpuProfiler_DrawDetails");
+    if (ImGui::BeginTableEx("##InAppGpuProfiler_DrawDetails", listViewID, 4, flags, size, 0.0f)) {
+        ImGui::TableSetupColumn("Tree");
+        ImGui::TableSetupColumn("Start time");
+        ImGui::TableSetupColumn("End time");
+        ImGui::TableSetupColumn("Elapsed time");
+        ImGui::TableHeadersRow();
+        for (const auto& con : m_Contexts) {
+            if (con.second.use_count()) {
+                con.second->DrawDetails();
+            }
         }
+        ImGui::EndTable();
     }
 }
 
