@@ -9,7 +9,6 @@ uniform vec3 iResolution;
 
 // https://www.shadertoy.com/view/Xl3SzH
 // Created by Stephane Cuillerdier - Aiekick/2016
-// License Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported License.
 
 mat3 RotX(float a){return mat3(1.,0.,0.,0.,cos(a),-sin(a),0.,sin(a),cos(a));}
 mat3 RotY(float a){return mat3(cos(a),0.,sin(a),0.,1.,0.,-sin(a),0.,cos(a));}

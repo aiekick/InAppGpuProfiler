@@ -185,18 +185,18 @@ glApi::QuadVfxPtr init_shader_11(const float& vSx, const float& vSy) {
 
     // uniform vec2(0.0:1.0:0.924,0.0) _c;
     static std::array<float, 2U> _c = {0.924f, 0.0f};
-    res_ptr->addUniformFloat(                                   //
+    res_ptr->addUniformFloat(                                  //
         GL_FRAGMENT_SHADER, "_c", _c.data(), _c.size(), true,  //
-        [](glApi::Program::Uniform& vUniform) {                 //
+        [](glApi::Program::Uniform& vUniform) {                //
             SliderFloatDefault("_c x", &vUniform.datas_f[0], 0.0f, 1.0f, 0.924f);
             SliderFloatDefault("_c y", &vUniform.datas_f[1], 0.0f, 1.0f, 0.0f);
         });
 
     // uniform int(0:200:100) _niter;
     static std::array<int, 1U> _niter = {100};
-    res_ptr->addUniformInt(                                  //
+    res_ptr->addUniformInt(                                                //
         GL_FRAGMENT_SHADER, "_niter", _niter.data(), _niter.size(), true,  //
-        [](glApi::Program::Uniform& vUniform) {                //
+        [](glApi::Program::Uniform& vUniform) {                            //
             SliderIntDefault("_niter", &vUniform.datas_i[0], 0, 200, 100);
         });
 
@@ -210,34 +210,34 @@ glApi::QuadVfxPtr init_shader_11(const float& vSx, const float& vSy) {
 
     // uniform float(0.0:5.0:2.2) _scale;
     static std::array<float, 1U> _scale = {2.2f};
-    res_ptr->addUniformFloat(                                  //
+    res_ptr->addUniformFloat(                                              //
         GL_FRAGMENT_SHADER, "_scale", _scale.data(), _scale.size(), true,  //
-        [](glApi::Program::Uniform& vUniform) {                //
+        [](glApi::Program::Uniform& vUniform) {                            //
             SliderFloatDefault("_scale", &vUniform.datas_f[0], 0.0f, 5.0f, 2.0f);
         });
 
     // uniform float(0.0:0.5:0.03) _limit;
     static std::array<float, 1U> _limit = {0.03f};
-    res_ptr->addUniformFloat(                                  //
+    res_ptr->addUniformFloat(                                              //
         GL_FRAGMENT_SHADER, "_limit", _limit.data(), _limit.size(), true,  //
-        [](glApi::Program::Uniform& vUniform) {                //
+        [](glApi::Program::Uniform& vUniform) {                            //
             SliderFloatDefault("_limit", &vUniform.datas_f[0], 0.0f, 0.5f, 0.03f);
         });
 
     // uniform float(0.0:100.0:8.0) _dist;
     static std::array<float, 1U> _dist = {8.0f};
-    res_ptr->addUniformFloat(                                  //
+    res_ptr->addUniformFloat(                                           //
         GL_FRAGMENT_SHADER, "_dist", _dist.data(), _dist.size(), true,  //
-        [](glApi::Program::Uniform& vUniform) {                //
+        [](glApi::Program::Uniform& vUniform) {                         //
             SliderFloatDefault("_dist", &vUniform.datas_f[0], 0.0f, 100.0f, 8.0f);
         });
 
     // uniform vec3(color:1,0,1) _color;
     static std::array<float, 3U> _color_default = {1.0f, 0.0f, 1.0f};
     static std::array<float, 3U> _color = {1.0f, 0.0f, 1.0f};
-    res_ptr->addUniformFloat(                                  //
+    res_ptr->addUniformFloat(                                              //
         GL_FRAGMENT_SHADER, "_color", _color.data(), _color.size(), true,  //
-        [](glApi::Program::Uniform& vUniform) {                //
+        [](glApi::Program::Uniform& vUniform) {                            //
             if (vUniform.channels == 3U) {
                 Color3Default("_color", &vUniform.datas_f[0], _color_default.data());
             }
@@ -245,13 +245,12 @@ glApi::QuadVfxPtr init_shader_11(const float& vSx, const float& vSy) {
 
     // uniform vec2(0:5:3,1.51) _colorVar;
     static std::array<float, 2U> _colorVar = {3.0f, 1.51f};
-    res_ptr->addUniformFloat(                                  //
+    res_ptr->addUniformFloat(                                                       //
         GL_FRAGMENT_SHADER, "_colorVar", _colorVar.data(), _colorVar.size(), true,  //
-        [](glApi::Program::Uniform& vUniform) {                //
+        [](glApi::Program::Uniform& vUniform) {                                     //
             SliderFloatDefault("_colorVar x", &vUniform.datas_f[0], 0.0f, 5.0f, 3.0f);
             SliderFloatDefault("_colorVar y", &vUniform.datas_f[1], 0.0f, 5.0f, 1.51f);
         });
-
 
     res_ptr->finalizeBeforeRendering();
     return res_ptr;
@@ -285,11 +284,23 @@ glApi::QuadVfxPtr init_shader_21(const float& vSx, const float& vSy) {
 }
 
 glApi::QuadVfxPtr init_shader_22(const float& vSx, const float& vSy) {
-    auto res_ptr = glApi::QuadVfx::create("Vfx 22", shader_quad_ptr, quadMeshPtr, "shaders/shader22.frag", vSx, vSy, 2U, true, true);
+    static std::array<float, 3U> uniformBiggerResolution = {vSx * 2.0f, vSy * 2.0f, 0.0f}; // resolution * 2.0 for better details
+    auto res_ptr = glApi::QuadVfx::create(                                //
+        "Vfx 22", shader_quad_ptr, quadMeshPtr, "shaders/shader22.frag",  //
+        uniformBiggerResolution[0], uniformBiggerResolution[1], 2U, true, true);
     assert(res_ptr != nullptr);
     res_ptr->addUniformFloat(GL_FRAGMENT_SHADER, "iTime", uniformTime.data(), uniformTime.size(), false, nullptr);
     res_ptr->addUniformInt(GL_FRAGMENT_SHADER, "iFrame", uniformFrame.data(), uniformFrame.size(), false, nullptr);
-    res_ptr->addUniformFloat(GL_FRAGMENT_SHADER, "iResolution", uniformResolution.data(), uniformResolution.size(), false, nullptr);
+    res_ptr->addUniformFloat(                                                                                     //
+        GL_FRAGMENT_SHADER, "iResolution", uniformBiggerResolution.data(), uniformBiggerResolution.size(), true,  //
+        [](glApi::Program::Uniform& vUniform) {
+            ImGui::Text("iResolution x");
+            ImGui::SameLine(LABEL_MAX_DISPLAY_WIDTH);
+            ImGui::Text("%.1f", uniformBiggerResolution[0]);
+            ImGui::Text("iResolution y");
+            ImGui::SameLine(LABEL_MAX_DISPLAY_WIDTH);
+            ImGui::Text("%.1f", uniformBiggerResolution[1]);
+        });
     res_ptr->addUniformSampler2D(GL_FRAGMENT_SHADER, "iChannel0", -1, false);
     res_ptr->setUniformPreUploadFunctor([](glApi::FBOPipeLinePtr vFBOPipeLinePtr, glApi::Program::Uniform& vUniform) {
         if (vFBOPipeLinePtr != nullptr) {
@@ -338,8 +349,18 @@ bool resize_shaders(const float& vSx, const float& vSy) {
     return res;
 }
 
-void render_shaders() {
-    if (!pauseRendering) {
+void clear_buffers(const std::array<float, 4U>& vColor) {
+    AIGPScoped("clear_buffers", "BHuffer");
+    for (size_t x = 0U; x < 3; ++x) {
+        for (size_t y = 0U; y < 3; ++y) {
+            assert(quadVfxPtrs[x][y] != nullptr);
+            quadVfxPtrs[x][y]->clearBuffers(vColor);
+        }
+    }
+}
+
+void render_shaders(const bool& vForce = false) {
+    if (!pauseRendering || vForce) {
         AIGPScoped("render_shaders", "Shaders");
         for (size_t x = 0U; x < 3; ++x) {
             for (size_t y = 0U; y < 3; ++y) {
@@ -375,6 +396,12 @@ void calc_imgui() {
         ImGui::MenuItem("Details", nullptr, &show_profiler_details);
         ImGui::Spacing();
         ImGui::MenuItem("Flame Graph", nullptr, &show_profiler_flame_graph);
+        ImGui::Spacing();
+        if (ImGui::Button("Clear Buffers")) {
+            std::array<float, 4U> col = {};
+            clear_buffers(col);
+            render_shaders(true); // one update after
+        }
         ImGui::EndMainMenuBar();
     }
 
@@ -393,10 +420,16 @@ void calc_imgui() {
 
             ImGui::EndMenuBar();
         }
+        float scale_inv = 1.0f;
         for (size_t x = 0U; x < 3; ++x) {
             for (size_t y = 0U; y < 3; ++y) {
                 assert(quadVfxPtrs[x][y] != nullptr);
-                quadVfxPtrs[x][y]->drawImGuiThumbnail();
+                if (x == 2U && y == 2U) {
+                    scale_inv = 0.5f; // this one have a bigger resolution
+                } else {
+                    scale_inv = 1.0f;
+                }
+                quadVfxPtrs[x][y]->drawImGuiThumbnail(uniformResolution[0], uniformResolution[1], scale_inv);
                 if (y != 2U) {
                     ImGui::SameLine();
                 }

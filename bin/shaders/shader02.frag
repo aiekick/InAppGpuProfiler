@@ -4,7 +4,7 @@
 layout(location = 0) out vec4 fragColor;
 layout(location = 0) in vec2 vUV;
 
-// shader https://www.shadertoy.com/view/4tX3R4
+// https://www.shadertoy.com/view/4tX3R4
 // Created by Stephane Cuillerdier - @Aiekick/2014
 
 uniform float iTime;

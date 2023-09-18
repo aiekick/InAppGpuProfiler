@@ -169,6 +169,10 @@ public:
     void declareViewPort() {
         glViewport(0, 0, m_SizeX, m_SizeY);
     }
+    void clearBuffers(const std::array<float, 4U>& vColor) {
+        assert(m_FBOPipeLinePtr != nullptr);
+        m_FBOPipeLinePtr->clearBuffer(vColor);
+    }
     void render() {
         AIGPScoped("VFX", "Render %s", m_Name.c_str());
         auto quad_ptr = m_QuadMesh.lock();
@@ -181,7 +185,6 @@ public:
                 if (m_ProgramPtr->use()) {
                     m_ProgramPtr->uploadUniforms(m_FBOPipeLinePtr);
                     m_FBOPipeLinePtr->selectBuffers();
-                    m_FBOPipeLinePtr->clearColorAttachments();
                     declareViewPort();
                     quad_ptr->render(GL_TRIANGLES);
                     m_FBOPipeLinePtr->updateMipMaping();
@@ -191,13 +194,13 @@ public:
             }
         }
     }
-    void drawImGuiThumbnail() {
+    void drawImGuiThumbnail(const float& vSx, const float& vSy, const float& vScaleInv) {
         assert(m_FBOPipeLinePtr != nullptr);
         auto front_fbo_ptr = m_FBOPipeLinePtr->getFrontFBO().lock();
         if (front_fbo_ptr != nullptr) {
             const auto texId = front_fbo_ptr->getTextureId();
             if (texId > 0U) {
-                ImGui::Image((ImTextureID)texId, ImVec2((float)m_SizeX, (float)m_SizeY), ImVec2(0, 1), ImVec2(1, 0));
+                ImGui::Image((ImTextureID)texId, ImVec2(vSx, vSy), ImVec2(0, vScaleInv), ImVec2(vScaleInv, 0));
             }
         }
     }

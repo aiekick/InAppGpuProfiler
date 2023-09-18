@@ -4,7 +4,7 @@
 layout(location = 0) out vec4 fragColor;
 layout(location = 0) in vec2 vUV;
 
-// shader https://www.shadertoy.com/view/4djBDR
+// https://www.shadertoy.com/view/4djBDR
 // Created by Stephane Cuillerdier - @Aiekick/2014
 
 uniform int iFrame;

@@ -92,7 +92,6 @@ public:
 
     bool bind() {
         if (m_FBOId > 0) {
-            AIGPScoped("FBO", "Bind");
             glBindFramebuffer(GL_FRAMEBUFFER, m_FBOId);
             CheckGLErrors;
             return true;
@@ -100,9 +99,13 @@ public:
         return false;
     }
 
-    void clearColorAttachments() {
-        glClear(GL_COLOR_BUFFER_BIT);
-        CheckGLErrors;
+    void clearBuffer(const std::array<float, 4U>& vColor) {
+        AIGPScoped("FBO", "Clear");
+        if (bind()) {
+            glClearColor(vColor[0], vColor[1], vColor[2], vColor[3]); 
+            glClear(GL_COLOR_BUFFER_BIT);
+            unbind();        
+        }
     }
 
     void updateMipMaping() {
@@ -241,9 +244,13 @@ public:
         assert(m_FrontFBOPtr != nullptr);
         return m_FrontFBOPtr->bind();
     }
-    void clearColorAttachments() {
+    void clearBuffer(const std::array<float, 4U>& vColor) {
         assert(m_FrontFBOPtr != nullptr);
-        m_FrontFBOPtr->clearColorAttachments();
+        m_FrontFBOPtr->clearBuffer(vColor);
+        if (m_MultiPass) {
+            assert(m_BackFBOPtr != nullptr);
+            m_BackFBOPtr->clearBuffer(vColor);
+        }
     }
     void updateMipMaping() {
         assert(m_FrontFBOPtr != nullptr);
