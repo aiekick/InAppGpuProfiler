@@ -53,11 +53,11 @@ private:
     FBOPipeLinePtr m_FBOPipeLinePtr = nullptr;
     ShaderPtr m_FragShaderPtr = nullptr;
     ProgramPtr m_ProgramPtr = nullptr;
-    GLsizei m_SizeX = 0;
-    GLsizei m_SizeY = 0;
+    std::array<GLuint, 2U> m_Size;
     bool m_UseMipMapping = false;
     bool m_MultiPass = false;
     GLuint m_RenderIterations = 1U;
+    bool m_RenderingPause = false;
 
 public:
     static QuadVfxPtr create(           //
@@ -103,8 +103,8 @@ public:
         m_Name = vName;
         m_VertShader = vVertShader;
         m_QuadMesh = vQuadMesh;
-        m_SizeX = vSx;
-        m_SizeY = vSy;
+        m_Size[0] = vSx;
+        m_Size[1] = vSy;
         m_UseMipMapping = vUseMipMapping;
         m_MultiPass = vMultiPass;
         m_FBOPipeLinePtr = FBOPipeLine::create(vSx, vSy, vCountBuffers, vUseMipMapping, m_MultiPass);
@@ -123,8 +123,23 @@ public:
         }
         return false;
     }
+    const char* getLabelName() {
+        return m_Name.c_str();
+    }
+    const std::array<GLuint, 2U>& getSize() {
+        return m_Size;
+    }
     void setRenderingIterations(const GLuint& vRenderingIterations) {
         m_RenderIterations = vRenderingIterations;
+    }
+    GLuint& getRenderingIterationsRef() {
+        return m_RenderIterations;
+    }
+    void setRenderingPause(const bool& vRenderingPause) {
+        m_RenderingPause = vRenderingPause;
+    }
+    bool& getRenderingPauseRef() {
+        return m_RenderingPause;
     }
     void setUniformPreUploadFunctor(Program::UniformPreUploadFunctor vUniformPreUploadFunctor) {
         assert(m_ProgramPtr != nullptr);
@@ -164,16 +179,21 @@ public:
     }
     bool resize(const float& vSx, const float vSy) {
         assert(m_FBOPipeLinePtr != nullptr);
-        return m_FBOPipeLinePtr->resize(vSx, vSy);
-    }
-    void declareViewPort() {
-        glViewport(0, 0, m_SizeX, m_SizeY);
+        if (m_FBOPipeLinePtr->resize(vSx, vSy)) {
+            m_Size[0] = vSx;
+            m_Size[1] = vSy;
+            return true;
+        }
+        return false;
     }
     void clearBuffers(const std::array<float, 4U>& vColor) {
         assert(m_FBOPipeLinePtr != nullptr);
         m_FBOPipeLinePtr->clearBuffer(vColor);
     }
     void render() {
+        if (m_RenderingPause) {
+            return;
+        }
         AIGPScoped("VFX", "Render %s", m_Name.c_str());
         auto quad_ptr = m_QuadMesh.lock();
         assert(quad_ptr != nullptr);
@@ -185,7 +205,7 @@ public:
                 if (m_ProgramPtr->use()) {
                     m_ProgramPtr->uploadUniforms(m_FBOPipeLinePtr);
                     m_FBOPipeLinePtr->selectBuffers();
-                    declareViewPort();
+                    glViewport(0, 0, m_Size[0], m_Size[1]);
                     quad_ptr->render(GL_TRIANGLES);
                     m_FBOPipeLinePtr->updateMipMaping();
                     m_ProgramPtr->unuse();
@@ -194,13 +214,21 @@ public:
             }
         }
     }
+    const GLuint& getTextureId() {
+        assert(m_FBOPipeLinePtr != nullptr);
+        auto front_fbo_ptr = m_FBOPipeLinePtr->getFrontFBO().lock();
+        if (front_fbo_ptr != nullptr) {
+            return front_fbo_ptr->getTextureId();
+        }    
+    }
     void drawImGuiThumbnail(const float& vSx, const float& vSy, const float& vScaleInv) {
         assert(m_FBOPipeLinePtr != nullptr);
         auto front_fbo_ptr = m_FBOPipeLinePtr->getFrontFBO().lock();
         if (front_fbo_ptr != nullptr) {
             const auto texId = front_fbo_ptr->getTextureId();
             if (texId > 0U) {
-                ImGui::Image((ImTextureID)texId, ImVec2(vSx, vSy), ImVec2(0, vScaleInv), ImVec2(vScaleInv, 0));
+                ImGui::ImageButton(m_Name.c_str(), (ImTextureID)texId, ImVec2(vSx, vSy), ImVec2(0, vScaleInv), ImVec2(vScaleInv, 0));
+                //ImGui::Image((ImTextureID)texId, ImVec2(vSx, vSy), ImVec2(0, vScaleInv), ImVec2(vScaleInv, 0));
             }
         }
     }

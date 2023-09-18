@@ -96,7 +96,19 @@ static bool SliderIntDefault(const char* label, int32_t* v, int32_t v_min, int32
     ImGui::PopID();
     return res;
 }
-
+static bool SliderUIntDefault(const char* label, uint32_t* v, uint32_t v_min, uint32_t v_max, uint32_t v_default) {
+    assert(v != nullptr);
+    ImGui::PushID(label);
+    ImGui::Text("%s", label);
+    ImGui::SameLine(LABEL_MAX_DISPLAY_WIDTH);
+    if (ImGui::Button("R")) {
+        *v = v_default;
+    }
+    ImGui::SameLine();
+    bool res = ImGui::SliderScalar("##SliderInt", ImGuiDataType_U32, v, &v_min, &v_max);
+    ImGui::PopID();
+    return res;
+}
 static bool Color3Default(const char* label, float* v, float v_default[3]) {
     assert(v != nullptr);
     ImGui::PushID(label);
@@ -110,19 +122,35 @@ static bool Color3Default(const char* label, float* v, float v_default[3]) {
     ImGui::PopID();
     return res;
 }
+static bool CheckBoxDefault(const char* label, bool* v, bool default) {
+    assert(v != nullptr);
+    ImGui::PushID(label);
+    ImGui::Text("%s", label);
+    ImGui::SameLine(LABEL_MAX_DISPLAY_WIDTH);
+    if (ImGui::Button("R")) {
+       *v =  default;
+    }
+    ImGui::SameLine();
+    bool res = ImGui::Checkbox("##Checkbox", v);
+    ImGui::PopID();
+    return res;
+}
 
 glApi::ShaderPtr shader_quad_ptr = nullptr;
 glApi::QuadMeshPtr quadMeshPtr = nullptr;
 glApi::QuadVfxPtr quadVfxPtrs[3][3] = {};
+glApi::QuadVfxWeak currentQuadVFX; // current to show in shader view
 
-// globals
+    // globals
 bool pauseRendering = false;
 bool show_imgui = false;
 bool show_shaders = true;
 bool show_uniforms = false;
+bool show_controls = false;
+bool show_shader_view = false;
 bool show_profiler_details = false;
 bool show_profiler_flame_graph = true;
-int32_t thumbnail_width = 200;
+int32_t thumbnail_height = 200;
 
 // common uniforms
 // array is not vector, default value must be set
@@ -382,6 +410,19 @@ void unit_shaders() {
     }
 }
 
+void shader_view() {
+    if (!currentQuadVFX.expired()) {
+        auto ptr = currentQuadVFX.lock();
+        if (ptr != nullptr) {
+            const auto& size = ImGui::GetContentRegionAvail();
+            const auto& vfx_size = ptr->getSize();
+            const auto& tex_id = ptr->getTextureId();
+            float scale_inv = (float)thumbnail_height / vfx_size[1];
+            ImGui::Image((ImTextureID)tex_id, size, ImVec2(0, scale_inv), ImVec2(scale_inv, 0));
+        }
+    }
+}
+
 void calc_imgui() {
     if (ImGui::BeginMainMenuBar()) {
         auto& io = ImGui::GetIO();
@@ -392,6 +433,10 @@ void calc_imgui() {
         ImGui::MenuItem("Shaders", nullptr, &show_shaders);
         ImGui::Spacing();
         ImGui::MenuItem("Uniforms", nullptr, &show_uniforms);
+        ImGui::Spacing();
+        ImGui::MenuItem("Controls", nullptr, &show_controls);
+        ImGui::Spacing();
+        ImGui::MenuItem("Shader View", nullptr, &show_shader_view);
         ImGui::Spacing();
         ImGui::MenuItem("Details", nullptr, &show_profiler_details);
         ImGui::Spacing();
@@ -420,16 +465,20 @@ void calc_imgui() {
 
             ImGui::EndMenuBar();
         }
-        float scale_inv = 1.0f;
         for (size_t x = 0U; x < 3; ++x) {
             for (size_t y = 0U; y < 3; ++y) {
-                assert(quadVfxPtrs[x][y] != nullptr);
-                if (x == 2U && y == 2U) {
-                    scale_inv = 0.5f; // this one have a bigger resolution
-                } else {
-                    scale_inv = 1.0f;
+                auto ptr = quadVfxPtrs[x][y];
+                assert(ptr != nullptr);
+                const auto& vfx_size = ptr->getSize();
+                float scale_inv = (float)thumbnail_height / vfx_size[1];
+                auto tex_id = ptr->getTextureId();
+                if (tex_id > 0U) {
+                    if (ImGui::ImageButton(ptr->getLabelName(), (ImTextureID)tex_id, ImVec2(uniformResolution[0], uniformResolution[1]),
+                                           ImVec2(0, scale_inv), ImVec2(scale_inv, 0))) {
+                        show_shader_view = true;
+                        currentQuadVFX = ptr;
+                    }
                 }
-                quadVfxPtrs[x][y]->drawImGuiThumbnail(uniformResolution[0], uniformResolution[1], scale_inv);
                 if (y != 2U) {
                     ImGui::SameLine();
                 }
@@ -457,6 +506,35 @@ void calc_imgui() {
         ImGui::End();
     }
 
+    if (show_controls) {
+        ImGui::Begin("Controls", &show_controls);
+        for (size_t x = 0U; x < 3; ++x) {
+            for (size_t y = 0U; y < 3; ++y) {
+                auto ptr = quadVfxPtrs[x][y];
+                assert(ptr != nullptr);
+                ImGui::Text("Vfx %u%u", (uint32_t)x, (uint32_t)y);
+                ImGui::PushID(ptr.get());
+                ImGui::Indent();
+                auto& rendering_pause = ptr->getRenderingPauseRef();
+                const char* pause_label = "Pause";
+                if (rendering_pause) {
+                    pause_label = "Play";
+                }
+                CheckBoxDefault(pause_label, &rendering_pause, false);
+                SliderUIntDefault("Iterations", &ptr->getRenderingIterationsRef(), 1U, 10U, 1U);
+                ImGui::Unindent();
+                ImGui::PopID();
+            }
+        }
+        ImGui::End();
+    }
+
+    if (show_shader_view) {
+        ImGui::Begin("Shader View", &show_shader_view, ImGuiWindowFlags_MenuBar);
+        shader_view();
+        ImGui::End();
+    }
+
     if (show_profiler_details) {
         ImGui::Begin("In App Gpu Profiler Details", &show_profiler_details, ImGuiWindowFlags_MenuBar);
         iagp::InAppGpuProfiler::Instance()->DrawDetails();
@@ -467,6 +545,25 @@ void calc_imgui() {
         ImGui::Begin("In App Gpu Profiler Flame Graph", &show_profiler_flame_graph, ImGuiWindowFlags_MenuBar);
         iagp::InAppGpuProfiler::Instance()->DrawFlamGraph();
         ImGui::End();
+
+        for (auto& queryZone : iagp::InAppGpuQueryZone::sTabbedQueryZones) {
+            if (!queryZone.expired()) {
+                auto ptr = queryZone.lock();
+                if (ptr != nullptr) {
+                    bool opened = true;
+                    ImGui::Begin(ptr->puName.c_str(), &opened, ImGuiWindowFlags_MenuBar);
+                    ptr->DrawFlamGraph(nullptr, 0);
+                    ImGui::End();
+                    if (!opened) {
+                        // we release the weak
+                        queryZone.reset();
+                        // unfotunatly we dont removed expired pointer
+                        // so with time the for loop will grow up
+                        // but its fast so maybe not a big problem
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -511,7 +608,6 @@ int main(int, char**) {
     ImGui::GetIO().Fonts->AddFontDefault();
 
     double ratio = 16.0 / 9.0;
-    int thumbnail_height = thumbnail_width;
     int thumbnail_width = (int)(ratio * (double)thumbnail_height);
     uniformResolution[0] = (float)thumbnail_width;
     uniformResolution[1] = (float)thumbnail_height;
@@ -520,16 +616,16 @@ int main(int, char**) {
     if (init_shaders(thumbnail_width, thumbnail_height)) {  // Main loop
         // resize_shaders(thumbnail_width, thumbnail_height);
         while (!glfwWindowShouldClose(window)) {
-            glfwPollEvents();
+            {
+                AIGPNewFrame("GPU Frame", "GPU Frame");  // a main Zone is always needed
+                glfwPollEvents();
 
-            int display_w, display_h;
-            glfwGetFramebufferSize(window, &display_w, &display_h);
+                int display_w, display_h;
+                glfwGetFramebufferSize(window, &display_w, &display_h);
 
-            if (display_w > 0 && display_h > 0) {
-                glfwMakeContextCurrent(window);
+                if (display_w > 0 && display_h > 0) {
+                    glfwMakeContextCurrent(window);
 
-                {
-                    AIGPNewFrame("GPU Frame", "GPU Frame");  // a main Zone is always needed
                     render_shaders();
 
                     // Start the Dear ImGui frame
@@ -550,16 +646,19 @@ int main(int, char**) {
                         glClear(GL_COLOR_BUFFER_BIT);
                         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
                     }
+
+                    {
+                        AIGPScoped("Main", "Swap");
+                        glfwSwapBuffers(window);
+                    }
                 }
-
-                AIGPCollect;  // collect all measure queries
-
-                glfwSwapBuffers(window);
-
-                // globals uniforms
-                uniformTime[0] += ImGui::GetIO().DeltaTime;
-                ++uniformFrame[0];
             }
+
+            AIGPCollect;  // collect all measure queries out of Main Frame
+
+            // globals uniforms
+            uniformTime[0] += ImGui::GetIO().DeltaTime;
+            ++uniformFrame[0];
         }
     }
 
