@@ -36,6 +36,7 @@ SOFTWARE.
 #include <cstdarg>
 #include <fstream>
 #include <clocale>
+#include <array>
 #include <string>
 #include <glad/glad.h>  // Initialize with gladLoadGL()
 
@@ -71,78 +72,105 @@ glApi::ShaderPtr shader_quad_ptr = nullptr;
 glApi::QuadMeshPtr quadMeshPtr = nullptr;
 glApi::QuadVfxPtr quadVfxPtrs[3][3] = {};
 
-// Global uniforms
+// globals
+bool pauseRendering = false;
+bool show_shaders = true;
+bool show_uniforms = false;
+bool show_profiler_details = false;
+bool show_profiler_flame_graph = true;
+bool use_mipmapping = false;
+int32_t thumbnail_width = 200;
 
-float uniformTimeValue = 0.0f;
+// common uniforms
+// array is not vector, default value must be set
+std::array<int, 1U> uniformFrame = {};
+std::array<float, 1U> uniformTime = {};
+std::array<float, 3U> uniformResolution = {};
+
+// specific uniforms
 
 glApi::QuadVfxPtr init_shader_00(const float& vSx, const float& vSy) {
-    auto res_ptr = glApi::QuadVfx::create("Vfx 00", shader_quad_ptr, quadMeshPtr, "shaders/shader00.frag", vSx, vSy, 1U);
+    auto res_ptr = glApi::QuadVfx::create("Vfx 00", shader_quad_ptr, quadMeshPtr, "shaders/shader00.frag", vSx, vSy, 1U, use_mipmapping, false);
     assert(res_ptr != nullptr);
-    res_ptr->addUniform(GL_FRAGMENT_SHADER, "uTime", &uniformTimeValue, true);
+    res_ptr->addUniformFloat(GL_FRAGMENT_SHADER, "iTime", uniformTime.data(), uniformTime.size(), false);
     res_ptr->finalizeBeforeRendering();
     return res_ptr;
 }
 
 glApi::QuadVfxPtr init_shader_01(const float& vSx, const float& vSy) {
-    auto res_ptr = glApi::QuadVfx::create("Vfx 01", shader_quad_ptr, quadMeshPtr, "shaders/shader01.frag", vSx, vSy, 1U);
+    auto res_ptr = glApi::QuadVfx::create("Vfx 01", shader_quad_ptr, quadMeshPtr, "shaders/shader01.frag", vSx, vSy, 1U, use_mipmapping, false);
     assert(res_ptr != nullptr);
-    res_ptr->addUniform(GL_FRAGMENT_SHADER, "uTime", &uniformTimeValue, true);
+    res_ptr->addUniformFloat(GL_FRAGMENT_SHADER, "iTime", uniformTime.data(), uniformTime.size(), false);
+    res_ptr->addUniformFloat(GL_FRAGMENT_SHADER, "iResolution", uniformResolution.data(), uniformResolution.size(), false);
     res_ptr->finalizeBeforeRendering();
     return res_ptr;
 }
 
 glApi::QuadVfxPtr init_shader_02(const float& vSx, const float& vSy) {
-    auto res_ptr = glApi::QuadVfx::create("Vfx 02", shader_quad_ptr, quadMeshPtr, "shaders/shader02.frag", vSx, vSy, 1U);
+    auto res_ptr = glApi::QuadVfx::create("Vfx 02", shader_quad_ptr, quadMeshPtr, "shaders/shader02.frag", vSx, vSy, 1U, use_mipmapping, false);
     assert(res_ptr != nullptr);
-    res_ptr->addUniform(GL_FRAGMENT_SHADER, "uTime", &uniformTimeValue, true);
+    res_ptr->addUniformFloat(GL_FRAGMENT_SHADER, "iTime", uniformTime.data(), uniformTime.size(), false);
+    res_ptr->addUniformFloat(GL_FRAGMENT_SHADER, "iResolution", uniformResolution.data(), uniformResolution.size(), false);
     res_ptr->finalizeBeforeRendering();
     return res_ptr;
 }
 
+// simple multipass
 glApi::QuadVfxPtr init_shader_10(const float& vSx, const float& vSy) {
-    auto res_ptr = glApi::QuadVfx::create("Vfx 10", shader_quad_ptr, quadMeshPtr, "shaders/shader10.frag", vSx, vSy, 1U);
+    auto res_ptr = glApi::QuadVfx::create("Vfx 10", shader_quad_ptr, quadMeshPtr, "shaders/shader10.frag", vSx, vSy, 1U, use_mipmapping, true);
     assert(res_ptr != nullptr);
-    res_ptr->addUniform(GL_FRAGMENT_SHADER, "uTime", &uniformTimeValue, true);
+    res_ptr->addUniformFloat(GL_FRAGMENT_SHADER, "iTime", uniformTime.data(), uniformTime.size(), false);
+    res_ptr->addUniformInt(GL_FRAGMENT_SHADER, "iFrame", uniformFrame.data(), uniformFrame.size(), false);
+    res_ptr->addUniformFloat(GL_FRAGMENT_SHADER, "iResolution", uniformResolution.data(), uniformResolution.size(), false);
+    res_ptr->addUniformSampler2D(GL_FRAGMENT_SHADER, "iChannel0", -1, false);
+    res_ptr->setUniformPreUploadFunctor([](glApi::FBOPipeLinePtr vFBOPipeLinePtr, glApi::Program::Uniform& vUniform) {
+        if (vFBOPipeLinePtr != nullptr) {
+            if (vUniform.name == "iChannel0") {
+                vUniform.data_s2d = vFBOPipeLinePtr->getBackTextureId(0U);  // get the back buffer at location 0 to use in the front buffer
+            }
+        }
+        });
     res_ptr->finalizeBeforeRendering();
     return res_ptr;
 }
 
 glApi::QuadVfxPtr init_shader_11(const float& vSx, const float& vSy) {
-    auto res_ptr = glApi::QuadVfx::create("Vfx 11", shader_quad_ptr, quadMeshPtr, "shaders/shader11.frag", vSx, vSy, 1U);
+    auto res_ptr = glApi::QuadVfx::create("Vfx 11", shader_quad_ptr, quadMeshPtr, "shaders/shader11.frag", vSx, vSy, 1U, use_mipmapping, false);
     assert(res_ptr != nullptr);
-    res_ptr->addUniform(GL_FRAGMENT_SHADER, "uTime", &uniformTimeValue, true);
+    res_ptr->addUniformFloat(GL_FRAGMENT_SHADER, "iTime", uniformTime.data(), uniformTime.size(), false);
+    res_ptr->addUniformFloat(GL_FRAGMENT_SHADER, "iResolution", uniformResolution.data(), uniformResolution.size(), false);
     res_ptr->finalizeBeforeRendering();
     return res_ptr;
 }
 
 glApi::QuadVfxPtr init_shader_12(const float& vSx, const float& vSy) {
-    auto res_ptr = glApi::QuadVfx::create("Vfx 12", shader_quad_ptr, quadMeshPtr, "shaders/shader12.frag", vSx, vSy, 1U);
+    auto res_ptr = glApi::QuadVfx::create("Vfx 12", shader_quad_ptr, quadMeshPtr, "shaders/shader12.frag", vSx, vSy, 1U, use_mipmapping, false);
     assert(res_ptr != nullptr);
-    res_ptr->addUniform(GL_FRAGMENT_SHADER, "uTime", &uniformTimeValue, true);
+    res_ptr->addUniformFloat(GL_FRAGMENT_SHADER, "iTime", uniformTime.data(), uniformTime.size(), false);
     res_ptr->finalizeBeforeRendering();
     return res_ptr;
 }
 
 glApi::QuadVfxPtr init_shader_20(const float& vSx, const float& vSy) {
-    auto res_ptr = glApi::QuadVfx::create("Vfx 20", shader_quad_ptr, quadMeshPtr, "shaders/shader20.frag", vSx, vSy, 1U);
+    auto res_ptr = glApi::QuadVfx::create("Vfx 20", shader_quad_ptr, quadMeshPtr, "shaders/shader20.frag", vSx, vSy, 1U, use_mipmapping, false);
     assert(res_ptr != nullptr);
-    res_ptr->addUniform(GL_FRAGMENT_SHADER, "uTime", &uniformTimeValue, true);
+    res_ptr->addUniformFloat(GL_FRAGMENT_SHADER, "iTime", uniformTime.data(), uniformTime.size(), false);
     res_ptr->finalizeBeforeRendering();
     return res_ptr;
 }
 
 glApi::QuadVfxPtr init_shader_21(const float& vSx, const float& vSy) {
-    auto res_ptr = glApi::QuadVfx::create("Vfx 21", shader_quad_ptr, quadMeshPtr, "shaders/shader21.frag", vSx, vSy, 1U);
+    auto res_ptr = glApi::QuadVfx::create("Vfx 21", shader_quad_ptr, quadMeshPtr, "shaders/shader21.frag", vSx, vSy, 1U, use_mipmapping, false);
     assert(res_ptr != nullptr);
-    res_ptr->addUniform(GL_FRAGMENT_SHADER, "uTime", &uniformTimeValue, true);
+    res_ptr->addUniformFloat(GL_FRAGMENT_SHADER, "iTime", uniformTime.data(), uniformTime.size(), false);
     res_ptr->finalizeBeforeRendering();
     return res_ptr;
 }
 
 glApi::QuadVfxPtr init_shader_22(const float& vSx, const float& vSy) {
-    auto res_ptr = glApi::QuadVfx::create("Vfx 22", shader_quad_ptr, quadMeshPtr, "shaders/shader22.frag", vSx, vSy, 1U);
+    auto res_ptr = glApi::QuadVfx::create("Vfx 22", shader_quad_ptr, quadMeshPtr, "shaders/shader22.frag", vSx, vSy, 1U, use_mipmapping, false);
     assert(res_ptr != nullptr);
-    res_ptr->addUniform(GL_FRAGMENT_SHADER, "uTime", &uniformTimeValue, true);
+    res_ptr->addUniformFloat(GL_FRAGMENT_SHADER, "iTime", uniformTime.data(), uniformTime.size(), false);
     res_ptr->finalizeBeforeRendering();
     return res_ptr;
 }
@@ -163,7 +191,7 @@ bool init_shaders(const float& vSx, const float& vSy) {
             quadVfxPtrs[2][1] = init_shader_21(vSx, vSy);
             quadVfxPtrs[2][2] = init_shader_22(vSx, vSy);
             res = true;
-        }    
+        }
     }
     if (res) {
         iagp::InAppGpuProfiler::Instance()->puIsActive = true;
@@ -183,11 +211,13 @@ bool resize_shaders(const float& vSx, const float& vSy) {
 }
 
 void render_shaders() {
-    AIGPNewFrame("", "GPU Frame");  // a main Zone is always needed
-    for (size_t x = 0U; x < 3; ++x) {
-        for (size_t y = 0U; y < 3; ++y) {
-            assert(quadVfxPtrs[x][y] != nullptr);
-            quadVfxPtrs[x][y]->render();
+    if (!pauseRendering) {
+        AIGPScoped("render_shaders", "Shaders");
+        for (size_t x = 0U; x < 3; ++x) {
+            for (size_t y = 0U; y < 3; ++y) {
+                assert(quadVfxPtrs[x][y] != nullptr);
+                quadVfxPtrs[x][y]->render();
+            }
         }
     }
 }
@@ -204,30 +234,70 @@ void unit_shaders() {
 }
 
 void calc_imgui() {
-    ImGui::Begin("Shaders");
-    for (size_t y = 0U; y < 3; ++y) {
+    if (ImGui::BeginMainMenuBar()) {
+        ImGui::MenuItem("Shaders", nullptr, &show_shaders);
+        ImGui::Spacing();
+        ImGui::MenuItem("Uniforms", nullptr, &show_uniforms);
+        ImGui::Spacing();
+        ImGui::MenuItem("Details", nullptr, &show_profiler_details);
+        ImGui::Spacing();
+        ImGui::MenuItem("Flame Graph", nullptr, &show_profiler_flame_graph);
+        ImGui::EndMainMenuBar();
+    }
+
+    if (show_shaders) {
+        ImGui::Begin("Shaders", nullptr, ImGuiWindowFlags_MenuBar | ImGuiWindowFlags_AlwaysAutoResize);
+        if (ImGui::BeginMenuBar()) {
+            const char* play_pause_label = "Pause";
+            if (pauseRendering) {
+                play_pause_label = "Play";
+            }
+            ImGui::Checkbox(play_pause_label, &pauseRendering);
+
+            ImGui::EndMenuBar();
+        }
         for (size_t x = 0U; x < 3; ++x) {
-            assert(quadVfxPtrs[x][y] != nullptr);
-            quadVfxPtrs[x][y]->drawImGuiThumbnail();
-            if (x != 2U) {
-                ImGui::SameLine();
+            for (size_t y = 0U; y < 3; ++y) {
+                assert(quadVfxPtrs[x][y] != nullptr);
+                quadVfxPtrs[x][y]->drawImGuiThumbnail();
+                if (y != 2U) {
+                    ImGui::SameLine();
+                }
             }
         }
+        ImGui::End();
     }
-    ImGui::End();
 
-    ImGui::Begin("Uniforms");
-    for (size_t x = 0U; x < 3; ++x) {
-        for (size_t y = 0U; y < 3; ++y) {
-            assert(quadVfxPtrs[x][y] != nullptr);
-            quadVfxPtrs[x][y]->drawUniformWidgets();
+    if (show_uniforms) {
+        ImGui::Begin("Uniforms");
+        ImGui::Text("Global Uniforms");
+        ImGui::Indent();
+        {
+            ImGui::DragFloat("Time", &uniformTime[0]);
+            ImGui::DragFloat2("Resolution", &uniformResolution[0]);
         }
+        ImGui::Unindent();
+        ImGui::Text("Program Uniforms");
+        for (size_t x = 0U; x < 3; ++x) {
+            for (size_t y = 0U; y < 3; ++y) {
+                assert(quadVfxPtrs[x][y] != nullptr);
+                quadVfxPtrs[x][y]->drawUniformWidgets();
+            }
+        }
+        ImGui::End();
     }
-    ImGui::End();
 
-    ImGui::Begin("In App Gpu Profiler", nullptr, ImGuiWindowFlags_MenuBar);
-    iagp::InAppGpuProfiler::Instance()->Draw();
-    ImGui::End();
+    if (show_profiler_details) {
+        ImGui::Begin("In App Gpu Profiler Details", nullptr, ImGuiWindowFlags_MenuBar);
+        iagp::InAppGpuProfiler::Instance()->DrawDetails();
+        ImGui::End();
+    }
+
+    if (show_profiler_flame_graph) {
+        ImGui::Begin("In App Gpu Profiler Flame Graph", nullptr, ImGuiWindowFlags_MenuBar);
+        iagp::InAppGpuProfiler::Instance()->DrawFlamGraph();
+        ImGui::End();
+    }
 }
 
 int main(int, char**) {
@@ -238,7 +308,8 @@ int main(int, char**) {
 
     // Setup window
     glfwSetErrorCallback(glfw_error_callback);
-    if (!glfwInit()) return 1;
+    if (!glfwInit())
+        return 1;
 
     // Decide GL+GLSL versions
     const char* glsl_version = "#version 330";
@@ -247,7 +318,8 @@ int main(int, char**) {
 
     // Create window with graphics context
     GLFWwindow* window = glfwCreateWindow(1280, 720, "Dear ImGui GLFW+OpenGL3 example", NULL, NULL);
-    if (window == NULL) return 1;
+    if (window == NULL)
+        return 1;
     glfwMakeContextCurrent(window);
     glfwSwapInterval(1);  // Enable vsync
 
@@ -269,12 +341,14 @@ int main(int, char**) {
     ImGui::GetIO().Fonts->AddFontDefault();
 
     double ratio = 16.0 / 9.0;
-    int thumbnail_height = 100;
+    int thumbnail_height = thumbnail_width;
     int thumbnail_width = (int)(ratio * (double)thumbnail_height);
+    uniformResolution[0] = (float)thumbnail_width;
+    uniformResolution[1] = (float)thumbnail_height;
 
     int last_display_w = 0, last_display_h = 0;
     if (init_shaders(thumbnail_width, thumbnail_height)) {  // Main loop
-        //resize_shaders(thumbnail_width, thumbnail_height);
+        // resize_shaders(thumbnail_width, thumbnail_height);
         while (!glfwWindowShouldClose(window)) {
             glfwPollEvents();
 
@@ -285,7 +359,7 @@ int main(int, char**) {
                 glfwMakeContextCurrent(window);
 
                 {
-                    AIGPNewFrame("", "GPU Frame");  // a main Zone is always needed
+                    AIGPNewFrame("GPU Frame", "GPU Frame");  // a main Zone is always needed
                     render_shaders();
 
                     // Start the Dear ImGui frame
@@ -300,7 +374,7 @@ int main(int, char**) {
                     // GPU Zone : Rendering
                     glfwMakeContextCurrent(window);
                     {
-                        AIGPScoped("", "ImGui::Render");
+                        AIGPScoped("ImGui", "Render");
                         glViewport(0, 0, display_w, display_h);
                         glClearColor(0.3f, 0.3f, 0.3f, 0.3f);
                         glClear(GL_COLOR_BUFFER_BIT);
@@ -312,10 +386,11 @@ int main(int, char**) {
 
                 glfwSwapBuffers(window);
 
-                uniformTimeValue += ImGui::GetIO().DeltaTime;
+                uniformTime[0] += ImGui::GetIO().DeltaTime;
+                ++uniformFrame[0];
             }
         }
-    }    
+    }
 
     // Cleanup
     unit_shaders();

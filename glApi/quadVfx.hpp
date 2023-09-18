@@ -36,6 +36,7 @@ SOFTWARE.
 
 #include <memory>
 #include <cassert>
+#include <functional>
 
 namespace glApi {
 
@@ -49,24 +50,28 @@ private:
     std::string m_Name;
     QuadMeshWeak m_QuadMesh;
     ShaderWeak m_VertShader;
-    FBOPtr m_FboPtr = nullptr;
+    FBOPipeLinePtr m_FBOPipeLinePtr = nullptr;
     ShaderPtr m_FragShaderPtr = nullptr;
     ProgramPtr m_ProgramPtr = nullptr;
     GLsizei m_SizeX = 0;
     GLsizei m_SizeY = 0;
+    bool m_UseMipMapping = false;
+    bool m_MultiPass = false;
 
 public:
-    static QuadVfxPtr create(             //
-        const std::string& vName,         //
-        ShaderWeak vVertShader,           //
-        QuadMeshWeak vQuadMesh,           //
-        const std::string& vFragFile,     //
-        const GLsizei& vSx,               //
-        const GLsizei& vSy,               //
-        const uint32_t& vCountBuffers) {  //
+    static QuadVfxPtr create(          //
+        const std::string& vName,      //
+        ShaderWeak vVertShader,        //
+        QuadMeshWeak vQuadMesh,        //
+        const std::string& vFragFile,  //
+        const GLsizei& vSx,            //
+        const GLsizei& vSy,            //
+        const uint32_t& vCountBuffers,//
+        const bool& vUseMipMapping,//
+        const bool& vMultiPass) {  //
         auto res = std::make_shared<QuadVfx>();
         res->m_This = res;
-        if (!res->init(vName, vVertShader, vQuadMesh, vFragFile, vSx, vSy, vCountBuffers)) {
+        if (!res->init(vName, vVertShader, vQuadMesh, vFragFile, vSx, vSy, vCountBuffers, vUseMipMapping, vMultiPass)) {
             res.reset();
         }
         return res;
@@ -78,14 +83,16 @@ public:
         unit();
     }
 
-    bool init(                            //
-        const std::string& vName,         //
-        ShaderWeak vVertShader,           //
-        QuadMeshWeak vQuadMesh,           //
-        const std::string& vFragFile,     //
-        const GLsizei& vSx,               //
-        const GLsizei& vSy,               //
-        const uint32_t& vCountBuffers) {  //
+    bool init(                         //
+        const std::string& vName,      //
+        ShaderWeak vVertShader,        //
+        QuadMeshWeak vQuadMesh,        //
+        const std::string& vFragFile,  //
+        const GLsizei& vSx,            //
+        const GLsizei& vSy,            //
+        const uint32_t& vCountBuffers, //
+        const bool& vUseMipMapping,//
+        const bool& vMultiPass) {  //
         assert(!vVertShader.expired());
         assert(!vQuadMesh.expired());
         assert(!vFragFile.empty());
@@ -97,8 +104,10 @@ public:
         m_QuadMesh = vQuadMesh;
         m_SizeX = vSx;
         m_SizeY = vSy;
-        m_FboPtr = FBO::create(vSx, vSy, vCountBuffers);
-        if (m_FboPtr != nullptr) {
+        m_UseMipMapping = vUseMipMapping;
+        m_MultiPass = vMultiPass;
+        m_FBOPipeLinePtr = FBOPipeLine::create(vSx, vSy, vCountBuffers, vUseMipMapping, m_MultiPass);
+        if (m_FBOPipeLinePtr != nullptr) {
             m_FragShaderPtr = glApi::Shader::createFromFile(vName, GL_FRAGMENT_SHADER, vFragFile);
             if (m_FragShaderPtr != nullptr) {
                 m_ProgramPtr = glApi::Program::create(vName);
@@ -113,48 +122,73 @@ public:
         }
         return false;
     }
-    void addUniform(const GLenum& vShaderType, const std::string& vUniformName, float* vUniformPtr, const bool& vShowWidget) {
-        m_ProgramPtr->addUniform(vShaderType, vUniformName, vUniformPtr, vShowWidget);
+    void setUniformPreUploadFunctor(Program::UniformPreUploadFunctor vUniformPreUploadFunctor) {
+        assert(m_ProgramPtr != nullptr);
+        m_ProgramPtr->setUniformPreUploadFunctor(vUniformPreUploadFunctor);
+    }
+    void addUniformFloat(                 //
+        const GLenum& vShaderType,        //
+        const std::string& vUniformName,  //
+        float* vUniformPtr,               //
+        const size_t& vCountChannels,     //
+        const bool& vShowWidget) {
+        assert(m_ProgramPtr != nullptr);
+        m_ProgramPtr->addUniformFloat(vShaderType, vUniformName, vUniformPtr, vCountChannels, vShowWidget);
+    }
+    void addUniformInt(                   //
+        const GLenum& vShaderType,        //
+        const std::string& vUniformName,  //
+        int32_t* vUniformPtr,             //
+        const size_t& vCountChannels,     //
+        const bool& vShowWidget) {
+        assert(m_ProgramPtr != nullptr);
+        m_ProgramPtr->addUniformInt(vShaderType, vUniformName, vUniformPtr, vCountChannels, vShowWidget);
+    }
+    void addUniformSampler2D(             //
+        const GLenum& vShaderType,        //
+        const std::string& vUniformName,  //
+        int32_t vSampler2D,               //
+        const bool& vShowWidget) {
+        assert(m_ProgramPtr != nullptr);
+        m_ProgramPtr->addUniformSampler2D(vShaderType, vUniformName, vSampler2D, vShowWidget);
     }
     void finalizeBeforeRendering() {
         assert(m_ProgramPtr != nullptr);
         m_ProgramPtr->locateUniforms();
     }
     bool resize(const float& vSx, const float vSy) {
-        assert(m_FboPtr != nullptr);
-        return m_FboPtr->resize(vSx, vSy);
+        assert(m_FBOPipeLinePtr != nullptr);
+        return m_FBOPipeLinePtr->resize(vSx, vSy);
     }
-
     void declareViewPort() {
-        AIGPScoped(m_Name, "Viewport");
         glViewport(0, 0, m_SizeX, m_SizeY);
     }
-
     void render() {
-        AIGPScoped(m_Name, "Render quad %s", m_Name.c_str());
+        AIGPScoped("VFX", "Render %s", m_Name.c_str());
         auto quad_ptr = m_QuadMesh.lock();
         assert(quad_ptr != nullptr);
-        assert(m_FboPtr != nullptr);
+        assert(m_FBOPipeLinePtr != nullptr);
         assert(m_ProgramPtr != nullptr);
-        if (m_FboPtr->bind()) {
+        if (m_FBOPipeLinePtr->bind()) {
             if (m_ProgramPtr->use()) {
-                m_ProgramPtr->uploadUniforms();
-                m_FboPtr->selectBuffers();
-                m_FboPtr->clearColorAttachments();
+                m_ProgramPtr->uploadUniforms(m_FBOPipeLinePtr);
+                m_FBOPipeLinePtr->selectBuffers();
+                m_FBOPipeLinePtr->clearColorAttachments();
                 declareViewPort();
                 quad_ptr->render(GL_TRIANGLES);
-                m_FboPtr->updateMipMaping();
+                m_FBOPipeLinePtr->updateMipMaping();
                 m_ProgramPtr->unuse();
             }
-            m_FboPtr->unbind();
+            m_FBOPipeLinePtr->unbind();
         }
     }
-
     void drawImGuiThumbnail() {
-        if (m_FboPtr != nullptr) {
-            const auto texId = m_FboPtr->getTextureId();
+        assert(m_FBOPipeLinePtr != nullptr);
+        auto front_fbo_ptr = m_FBOPipeLinePtr->getFrontFBO().lock();
+        if (front_fbo_ptr != nullptr) {
+            const auto texId = front_fbo_ptr->getTextureId();
             if (texId > 0U) {
-                ImGui::Image((ImTextureID)texId, ImVec2((float)m_SizeX, (float)m_SizeY));
+                ImGui::Image((ImTextureID)texId, ImVec2((float)m_SizeX, (float)m_SizeY), ImVec2(0,1), ImVec2(1,0));
             }
         }
     }
@@ -165,7 +199,7 @@ public:
     void unit() {
         m_ProgramPtr.reset();
         m_FragShaderPtr.reset();
-        m_FboPtr.reset();
+        m_FBOPipeLinePtr.reset();
     }
 };
 

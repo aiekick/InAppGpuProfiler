@@ -41,14 +41,15 @@ private:
     GLsizei m_SizeX = 0;
     GLsizei m_SizeY = 0;
     GLuint m_CountBuffers = 0U;
+    bool m_UseMipMapping = false;
     std::vector<TexturePtr> m_Textures;
     GLenum* m_ColorDrawBuffers = nullptr;
 
 public:
-    static FBOPtr create(const GLsizei& vSX, const GLsizei& vSY, const GLuint& vCountBuffers) {
+    static FBOPtr create(const GLsizei& vSX, const GLsizei& vSY, const GLuint& vCountBuffers, const bool& vUseMipMapping) {
         auto res = std::make_shared<FBO>();
         res->m_This = res;
-        if (!res->init(vSX, vSY, vCountBuffers)) {
+        if (!res->init(vSX, vSY, vCountBuffers, vUseMipMapping)) {
             res.reset();
         }
         return res;
@@ -56,15 +57,16 @@ public:
 
 public:
     FBO() = default;
-    ~FBO() {
+    virtual ~FBO() {
         unit();
     }
 
-    bool init(const GLsizei& vSX, const GLsizei& vSY, const GLuint& vCountBuffers) {
+    bool init(const GLsizei& vSX, const GLsizei& vSY, const GLuint& vCountBuffers, const bool& vUseMipMapping) {
         bool res = false;
         m_SizeX = vSX;
         m_SizeY = vSY;
         m_CountBuffers = vCountBuffers;
+        m_UseMipMapping = vUseMipMapping;
         if (m_CountBuffers > 0U) {
             glGenFramebuffers(1, &m_FBOId);
             CheckGLErrors;
@@ -73,7 +75,7 @@ public:
             m_Textures.resize(m_CountBuffers);
             m_ColorDrawBuffers = new GLenum[m_CountBuffers];
             for (GLuint idx = 0U; idx < vCountBuffers; ++idx) {
-                m_Textures[idx] = Texture::createEmpty(vSX, vSY, true);
+                m_Textures[idx] = Texture::createEmpty(vSX, vSY, vUseMipMapping);
                 if (m_Textures[idx] != nullptr) {
                     m_ColorDrawBuffers[idx] = GL_COLOR_ATTACHMENT0 + (GLenum)idx;
                     glFramebufferTexture2D(GL_FRAMEBUFFER, m_ColorDrawBuffers[idx], GL_TEXTURE_2D, m_Textures[idx]->getTexId(), 0);
@@ -90,7 +92,7 @@ public:
 
     bool bind() {
         if (m_FBOId > 0) {
-            AIGPScoped("", "FBO::Bind");
+            AIGPScoped("FBO", "Bind");
             glBindFramebuffer(GL_FRAMEBUFFER, m_FBOId);
             CheckGLErrors;
             return true;
@@ -104,17 +106,26 @@ public:
     }
 
     void updateMipMaping() {
-        AIGPScoped("", "FBO::updateMipMaping");
-        for (auto& tex_ptr : m_Textures) {
-            if (tex_ptr != nullptr) {
-                tex_ptr->updateMipMaping();
-            }
-        }         
+        if (m_UseMipMapping) {
+            AIGPScoped("FBO", "updateMipMaping");
+            for (auto& tex_ptr : m_Textures) {
+                if (tex_ptr != nullptr) {
+                    tex_ptr->updateMipMaping();
+                }
+            }         
+        }
     }
     
     void selectBuffers() {
-        AIGPScoped("", "FBO::SelectBuffers");
+        AIGPScoped("FBO", "SelectBuffers");
         glDrawBuffers(m_CountBuffers, m_ColorDrawBuffers);
+        CheckGLErrors;
+    }
+
+    void unbind() {
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        CheckGLErrors;
+        glBindTexture(GL_TEXTURE_2D, 0);
         CheckGLErrors;
     }
 
@@ -160,15 +171,117 @@ public:
         return false;
     }
 
-    void unbind() {
-        glBindFramebuffer(GL_FRAMEBUFFER, 0);
-        CheckGLErrors;
-    }
-
     void unit() {
         glDeleteFramebuffers(1, &m_FBOId);
         CheckGLErrors;
     }
 };
 
+/*
+* add front and back FBO
+* and switch between front and back after rendering
+*/
+
+class FBOPipeLine;
+typedef std::shared_ptr<FBOPipeLine> FBOPipeLinePtr;
+typedef std::weak_ptr<FBOPipeLine> FBOPipeLineWeak;
+class FBOPipeLine {
+private:
+    FBOPipeLineWeak m_This;
+    FBOPtr m_FrontFBOPtr = nullptr;
+    FBOPtr m_BackFBOPtr = nullptr;
+    bool m_MultiPass = false;
+
+public:
+    static FBOPipeLinePtr create(const GLsizei& vSX, const GLsizei& vSY, const GLuint& vCountBuffers, const bool& vUseMipMapping, const bool& vMultiPass) {
+        auto res = std::make_shared<FBOPipeLine>();
+        res->m_This = res;
+        if (!res->init(vSX, vSY, vCountBuffers, vUseMipMapping, vMultiPass)) {
+            res.reset();
+        }
+        return res;
+    }
+
+public:
+    FBOPipeLine() = default;
+    virtual ~FBOPipeLine() {
+        unit();
+    }
+    bool init(const GLsizei& vSX, const GLsizei& vSY, const GLuint& vCountBuffers, const bool& vUseMipMapping, const bool& vMultiPass) {
+        bool res = true;
+        m_MultiPass = vMultiPass;
+        m_FrontFBOPtr = FBO::create(vSX, vSY, vCountBuffers, vUseMipMapping);
+        if (m_FrontFBOPtr != nullptr) {
+            if (m_MultiPass) {
+                m_BackFBOPtr = FBO::create(vSX, vSY, vCountBuffers, vUseMipMapping);
+                if (m_BackFBOPtr != nullptr) {
+                    res = true;
+                }
+            } else {
+                res = true;
+            }
+        }
+        return res;
+    }
+    bool resize(const GLsizei& vNewSx, const GLsizei& vNewSy) {
+        bool res = false;
+        assert(m_FrontFBOPtr != nullptr);
+        res = m_FrontFBOPtr->resize(vNewSx, vNewSy);
+        if (m_MultiPass) {
+            assert(m_BackFBOPtr != nullptr);
+            res &= m_BackFBOPtr->resize(vNewSx, vNewSy);
+        }
+        return res;
+    }
+    void unit() {
+        m_FrontFBOPtr.reset();
+        m_BackFBOPtr.reset();
+    }
+    bool bind() {
+        assert(m_FrontFBOPtr != nullptr);
+        return m_FrontFBOPtr->bind();
+    }
+    void clearColorAttachments() {
+        assert(m_FrontFBOPtr != nullptr);
+        m_FrontFBOPtr->clearColorAttachments();
+    }
+    void updateMipMaping() {
+        assert(m_FrontFBOPtr != nullptr);
+        m_FrontFBOPtr->updateMipMaping();
+    }
+    void selectBuffers() {
+        assert(m_FrontFBOPtr != nullptr);
+        m_FrontFBOPtr->selectBuffers();
+    }
+    void unbind() {
+        assert(m_FrontFBOPtr != nullptr);
+        m_FrontFBOPtr->unbind();
+        if (m_MultiPass) {
+            swapFBOs();
+        }
+
+    }
+    GLuint getFrontTextureId(const size_t& vBufferIdx = 0U) {
+        assert(m_FrontFBOPtr != nullptr);
+        return m_FrontFBOPtr->getTextureId(vBufferIdx);
+    }
+    GLuint getBackTextureId(const size_t& vBufferIdx = 0U) {
+        assert(m_MultiPass);
+        assert(m_BackFBOPtr != nullptr);
+        return m_BackFBOPtr->getTextureId(vBufferIdx);
+    }
+    FBOWeak getFrontFBO() {
+        return m_FrontFBOPtr;
+    }
+    FBOWeak getBackFBO() {
+        assert(m_MultiPass);
+        return m_BackFBOPtr;
+    }
+    void swapFBOs() {
+        assert(m_MultiPass);
+        FBOPtr tmp = m_BackFBOPtr;
+        m_BackFBOPtr = m_FrontFBOPtr;
+        m_FrontFBOPtr = tmp;
+    }
+};
 }  // namespace glApi

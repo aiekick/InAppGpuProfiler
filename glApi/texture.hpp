@@ -37,6 +37,7 @@ class Texture {
 private:
     TextureWeak m_This;
     GLuint m_TexId = 0U;
+    bool m_EnableMipMap = false;
 
 public:
     static TexturePtr createEmpty(const GLsizei& vSx, const GLsizei& vSy, const bool& vEnableMipMap) {
@@ -55,6 +56,9 @@ public:
     }
 
     bool initEmpty(const GLsizei& vSx, const GLsizei& vSy, const bool& vEnableMipMap) {
+        assert(vSx > 0);
+        assert(vSy > 0);
+        m_EnableMipMap = vEnableMipMap;
         glGenTextures(1, &m_TexId);
         CheckGLErrors;
         glBindTexture(GL_TEXTURE_2D, m_TexId);
@@ -66,7 +70,7 @@ public:
         CheckGLErrors;
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
         CheckGLErrors;
-        if (vEnableMipMap) {
+        if (m_EnableMipMap) {
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_BASE_LEVEL, 0);
             CheckGLErrors;
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 8U);
@@ -92,10 +96,11 @@ public:
     }
     
     void updateMipMaping() {
-        AIGPScoped("", "Texture::updateMipMaping");
-        glGenerateMipmap(GL_TEXTURE_2D);
-        CheckGLErrors;
-        glFinish();
+        if (m_EnableMipMap) {
+            glGenerateMipmap(GL_TEXTURE_2D);
+            CheckGLErrors;
+            glFinish();
+        }
     }
 
     bool resize(const GLsizei& vSx, const GLsizei& vSy) {

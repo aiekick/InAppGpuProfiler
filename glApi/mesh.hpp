@@ -57,7 +57,7 @@ public:
 
 public:
     Mesh() = default;
-    ~Mesh() {
+    virtual ~Mesh() {
         unit();
     }
     uint32_t GetVaoID() {
@@ -131,7 +131,6 @@ public:
 
     bool bind() {
         if (glIsVertexArray(m_VaoId) == GL_TRUE) {
-            AIGPScoped("", "Mesh::bind");
             CheckGLErrors;
             glBindVertexArray(m_VaoId);
             CheckGLErrors;
@@ -153,7 +152,7 @@ public:
     }
 
     void render(GLenum vRenderMode) {
-        AIGPScoped("", "Mesh::render");
+        AIGPScoped("Mesh", "render");
         if (bind()) {
             glDrawElements(vRenderMode, (GLsizei)m_Indices.size(), GL_UNSIGNED_INT, nullptr);
             CheckGLErrors;

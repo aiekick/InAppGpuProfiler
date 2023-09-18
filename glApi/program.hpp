@@ -29,6 +29,7 @@ SOFTWARE.
 #include <memory>
 #include <string>
 #include <cassert>
+#include <functional>
 
 namespace glApi {
 
@@ -40,23 +41,29 @@ class Program {
 public:
     struct Uniform {
         std::string name;
-        float* datas = nullptr;
-        GLint loc = 0;
+        float* datas_f = nullptr;    // float
+        int32_t* datas_i = nullptr;  // int
+        int32_t data_s2d = -1;       // sampler2D
+        GLint loc = -1;
+        GLuint channels = 1U;
         bool used = false;
         bool showed = false;
     };
     typedef std::map<GLenum, std::map<std::string, Uniform>> UniformPerShaderTypeContainer;
+    typedef std::function<void(FBOPipeLinePtr, Uniform&)> UniformPreUploadFunctor;
 
 private:
+    ProgramWeak m_This;
     GLuint m_ProgramId = 0U;
     std::string m_ProgramName;
     std::map<uintptr_t, ShaderWeak> m_Shaders; // a same shader object can be added two times
-    // for simplification we support only float uniforms
-    UniformPerShaderTypeContainer m_FloatUniforms;
+    UniformPerShaderTypeContainer m_Uniforms;
+    UniformPreUploadFunctor m_UniformPreUploadFunctor = nullptr;  // lmanda to execute just before the uniform upload
 
 public:
     static ProgramPtr create(const std::string& vProgramName) {
         auto res = std::make_shared<Program>();
+        res->m_This = res;
         if (!res->init(vProgramName)) {
             res.reset();
         }
@@ -120,24 +127,80 @@ public:
         }
         return res;    
     }
-    void addUniform(const GLenum& vShaderType, const std::string& vUniformName, float* vUniformPtr, const bool& vShowWidget) {
+    void setUniformPreUploadFunctor(UniformPreUploadFunctor vUniformPreUploadFunctor) {
+        m_UniformPreUploadFunctor = vUniformPreUploadFunctor;
+    }
+    void addUniformFloat(const GLenum& vShaderType, const std::string& vUniformName, float* vUniformPtr, const GLuint& vCountChannels, const bool& vShowWidget) {
         assert(vShaderType > 0);
         assert(!vUniformName.empty());
         assert(vUniformPtr != nullptr);
+        assert(vCountChannels > 0U);
         Uniform uni;
         uni.name = vUniformName;
-        uni.datas = vUniformPtr;
+        uni.datas_f = vUniformPtr;
         uni.showed = vShowWidget;
-        m_FloatUniforms[vShaderType][vUniformName] = uni;
+        uni.channels = vCountChannels;
+        m_Uniforms[vShaderType][vUniformName] = uni;
     }
-    void uploadUniforms() {
-        AIGPScoped(m_ProgramName, "%s Program::uploadUniforms", m_ProgramName.c_str());
-        for (auto& shader_type : m_FloatUniforms) {
+    void addUniformInt(const GLenum& vShaderType, const std::string& vUniformName, int32_t* vUniformPtr, const GLuint& vCountChannels,
+                    const bool& vShowWidget) {
+        assert(vShaderType > 0);
+        assert(!vUniformName.empty());
+        assert(vUniformPtr != nullptr);
+        assert(vCountChannels > 0U);
+        Uniform uni;
+        uni.name = vUniformName;
+        uni.datas_i = vUniformPtr;
+        uni.showed = vShowWidget;
+        uni.channels = vCountChannels;
+        m_Uniforms[vShaderType][vUniformName] = uni;
+    }
+    void addUniformSampler2D(const GLenum& vShaderType, const std::string& vUniformName, int32_t vSampler2D,
+                    const bool& vShowWidget) {
+        assert(vShaderType > 0);
+        assert(!vUniformName.empty());
+        //assert(vSampler2D != -1);, if the sampler must point on a buffer after, its normal to have it at -1
+        Uniform uni;
+        uni.name = vUniformName;
+        uni.data_s2d = vSampler2D;
+        uni.showed = vShowWidget;
+        uni.channels = 0;
+        m_Uniforms[vShaderType][vUniformName] = uni;
+    }    
+    void uploadUniforms(FBOPipeLinePtr vFBOPipeLinePtr) {
+        AIGPScoped(m_ProgramName, "uploadUniforms");
+        int32_t textureSlotId = 0;
+        for (auto& shader_type : m_Uniforms) {
             for (auto& uni : shader_type.second) {
+                if (m_UniformPreUploadFunctor != nullptr) {
+                    m_UniformPreUploadFunctor(vFBOPipeLinePtr, uni.second);
+                }
                 if (uni.second.used) {
-                    assert(uni.second.datas != nullptr);
-                    glUniform1f(uni.second.loc, *uni.second.datas);
-                    CheckGLErrors;
+                    if (uni.second.datas_f != nullptr) {
+                        switch (uni.second.channels) {
+                            case 1U: glUniform1fv(uni.second.loc, 1, uni.second.datas_f); break;
+                            case 2U: glUniform2fv(uni.second.loc, 1, uni.second.datas_f); break;
+                            case 3U: glUniform3fv(uni.second.loc, 1, uni.second.datas_f); break;
+                            case 4U: glUniform4fv(uni.second.loc, 1, uni.second.datas_f); break;
+                        }
+                        CheckGLErrors;
+                    } else if (uni.second.datas_i != nullptr) {
+                        switch (uni.second.channels) {
+                            case 1U: glUniform1iv(uni.second.loc, 1, uni.second.datas_i); break;
+                            case 2U: glUniform2iv(uni.second.loc, 1, uni.second.datas_i); break;
+                            case 3U: glUniform3iv(uni.second.loc, 1, uni.second.datas_i); break;
+                            case 4U: glUniform4iv(uni.second.loc, 1, uni.second.datas_i); break;
+                        }
+                        CheckGLErrors;
+                    } else if (uni.second.data_s2d > -1) {
+                        glActiveTexture(GL_TEXTURE0 + textureSlotId);
+                        CheckGLErrors;
+                        glBindTexture(GL_TEXTURE_2D, uni.second.data_s2d);
+                        CheckGLErrors;
+                        glUniform1i(uni.second.loc, textureSlotId);
+                        CheckGLErrors;
+                        ++textureSlotId;
+                    }
                 }
             }
         }
@@ -146,7 +209,7 @@ public:
         ImGui::PushID(m_ProgramName.c_str());
         if (ImGui::CollapsingHeader(m_ProgramName.c_str(), ImGuiTreeNodeFlags_DefaultOpen)) {
             ImGui::Indent();
-            for (auto& shader_type : m_FloatUniforms) {
+            for (auto& shader_type : m_Uniforms) {
                 switch (shader_type.first) {
                     case GL_VERTEX_SHADER: ImGui::Text("%s", "Stage Vertex"); break;
                     case GL_FRAGMENT_SHADER: ImGui::Text("%s", "Stage Fragment"); break;
@@ -154,7 +217,21 @@ public:
                 ImGui::Indent();
                 for (auto& uni : shader_type.second) {
                     if (uni.second.showed && uni.second.used) {
-                        ImGui::DragFloat(uni.second.name.c_str(), uni.second.datas);
+                        if (uni.second.datas_f != nullptr) {
+                            switch (uni.second.channels) {
+                                case 1U: ImGui::DragFloat(uni.second.name.c_str(), uni.second.datas_f); break;
+                                case 2U: ImGui::DragFloat2(uni.second.name.c_str(), uni.second.datas_f); break;
+                                case 3U: ImGui::DragFloat3(uni.second.name.c_str(), uni.second.datas_f); break;
+                                case 4U: ImGui::DragFloat4(uni.second.name.c_str(), uni.second.datas_f); break;
+                            }
+                        } else if (uni.second.datas_i != nullptr) {
+                            switch (uni.second.channels) {
+                                case 1U: ImGui::DragInt(uni.second.name.c_str(), uni.second.datas_i); break;
+                                case 2U: ImGui::DragInt2(uni.second.name.c_str(), uni.second.datas_i); break;
+                                case 3U: ImGui::DragInt3(uni.second.name.c_str(), uni.second.datas_i); break;
+                                case 4U: ImGui::DragInt4(uni.second.name.c_str(), uni.second.datas_i); break;
+                            }
+                        }
                     }
                 }
                 ImGui::Unindent();
@@ -166,7 +243,7 @@ public:
     void locateUniforms() {
         assert(m_ProgramId > 0U);
         const char* stage_name = nullptr;
-        for (auto& shader_type : m_FloatUniforms) {
+        for (auto& shader_type : m_Uniforms) {
             switch (shader_type.first) {
                 case GL_VERTEX_SHADER: stage_name = "VERTEX"; break;
                 case GL_FRAGMENT_SHADER: stage_name = "FRAGMENT"; break;
@@ -190,7 +267,6 @@ public:
     }
     bool use() {
         if (m_ProgramId > 0U) {
-            AIGPScoped("", "Porgram::Use");
             glUseProgram(m_ProgramId);
             CheckGLErrors;
             return true;
