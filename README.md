@@ -4,4 +4,4 @@ This in the InAppGpuProfiler im using since two years in [NoodlesPlate](https://
 
 The demo app come with a little opengl framework with some of my [shaders](https://www.shadertoy.com/user/aiekick)
 
-[![Demo](doc/thumbnail.png)](doc/demo.mp4)
+[![Demo](https://github.com/aiekick/InAppGpuProfiler/tree/DemoApp/doc/thumbnail.png)](https://github.com/aiekick/InAppGpuProfiler/tree/DemoApp/doc/demo.mp4)
