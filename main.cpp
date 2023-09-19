@@ -122,13 +122,13 @@ static bool Color3Default(const char* label, float* v, float v_default[3]) {
     ImGui::PopID();
     return res;
 }
-static bool CheckBoxDefault(const char* label, bool* v, bool default) {
+static bool CheckBoxDefault(const char* label, bool* v, bool v_default) {
     assert(v != nullptr);
     ImGui::PushID(label);
     ImGui::Text("%s", label);
     ImGui::SameLine(LABEL_MAX_DISPLAY_WIDTH);
     if (ImGui::Button("R")) {
-       *v =  default;
+       *v = v_default;
     }
     ImGui::SameLine();
     bool res = ImGui::Checkbox("##Checkbox", v);
