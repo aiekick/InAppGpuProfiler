@@ -205,7 +205,10 @@ public:
                 if (m_ProgramPtr->use()) {
                     m_ProgramPtr->uploadUniforms(m_FBOPipeLinePtr);
                     m_FBOPipeLinePtr->selectBuffers();
-                    glViewport(0, 0, m_Size[0], m_Size[1]);
+                    {
+                        AIGPScoped("Opengl", "glViewport");
+                        glViewport(0, 0, m_Size[0], m_Size[1]);
+                    }
                     quad_ptr->render(GL_TRIANGLES);
                     m_FBOPipeLinePtr->updateMipMaping();
                     m_ProgramPtr->unuse();

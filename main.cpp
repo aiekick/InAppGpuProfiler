@@ -668,15 +668,29 @@ int main(int, char**) {
                     // GPU Zone : Rendering
                     glfwMakeContextCurrent(window);
                     {
-                        AIGPScoped("ImGui", "Render");
-                        glViewport(0, 0, display_w, display_h);
-                        glClearColor(0.3f, 0.3f, 0.3f, 0.3f);
-                        glClear(GL_COLOR_BUFFER_BIT);
-                        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+                        {
+                            AIGPScoped("Opengl", "glViewport");
+                            glViewport(0, 0, display_w, display_h);
+                        }
+
+                        {
+                            AIGPScoped("Opengl", "glClearColor");
+                            glClearColor(0.3f, 0.3f, 0.3f, 0.3f);
+                        }
+
+                        {
+                            AIGPScoped("Opengl", "glClear");
+                            glClear(GL_COLOR_BUFFER_BIT);
+                        }
+
+                        {
+                            AIGPScoped("ImGui", "RenderDrawData");
+                            ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+                        }
                     }
 
                     {
-                        AIGPScoped("Main", "Swap");
+                        AIGPScoped("Opengl", "glfwSwapBuffers");
                         glfwSwapBuffers(window);
                     }
                 }
