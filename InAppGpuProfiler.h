@@ -143,8 +143,6 @@ private:
     GPU_CONTEXT m_Context;
     std::string m_BarLabel;
     std::string m_SectionName;
-    float m_BarSize = 0.0f;
-    float m_BarStart = 0.0f;
     float m_BarSizeRatio = 0.0;
     float m_BarStartRatio = 0.0;
     ImVec4 cv4;

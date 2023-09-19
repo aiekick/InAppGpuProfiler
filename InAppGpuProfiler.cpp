@@ -319,17 +319,22 @@ bool InAppGpuQueryZone::DrawHorizontalFlameGraph(IAGPQueryZonePtr vParent, uint3
         return pressed;
     }
 
-    if (!vParent.use_count()) {
+    if (vParent == nullptr) {
         vParent = puThis;
+    }
+
+    if (puTopQuery == nullptr) {
         puTopQuery = puThis;
     }
 
-    if (m_ElapsedTime > 0.0) {
+    if (puTopQuery != nullptr && m_ElapsedTime > 0.0) {
         if (vDepth == 0) {
-            m_BarSize = aw;
-            m_BarStart = 0.0f;
+            m_BarSizeRatio = 1.0f;
+            m_BarStartRatio = 0.0f;
+            hsv = ImVec4((float)(0.5 - m_ElapsedTime * 0.5 / puTopQuery->m_ElapsedTime), 0.5f, 1.0f, 1.0f);
         } else if (vParent->m_ElapsedTime > 0.0) {
             puTopQuery = vParent->puTopQuery;
+
             ////////////////////////////////////////////////////////
             // for correct rounding isssue with average values
             if (vParent->m_StartTime > m_StartTime) {
@@ -349,27 +354,31 @@ bool InAppGpuQueryZone::DrawHorizontalFlameGraph(IAGPQueryZonePtr vParent, uint3
                 m_ElapsedTime = vParent->m_ElapsedTime;
             }
             ////////////////////////////////////////////////////////
-            const float startRatio = (float)((m_StartTime - vParent->m_StartTime) / vParent->m_ElapsedTime);
-            const float elapsedRatio = (float)(m_ElapsedTime / vParent->m_ElapsedTime);
-            m_BarSize = vParent->m_BarSize * elapsedRatio;
-            m_BarStart = vParent->m_BarStart + vParent->m_BarSize * startRatio;
+
+            m_BarStartRatio = (m_StartTime - puTopQuery->m_StartTime) / puTopQuery->m_ElapsedTime;
+            m_BarSizeRatio = m_ElapsedTime / puTopQuery->m_ElapsedTime;
+            hsv = ImVec4((float)(0.5 - m_ElapsedTime * 0.5 / puTopQuery->m_ElapsedTime), 0.5f, 1.0f, 1.0f);
         }
 
-        if (m_BarSize > 0.0f) {
+        if (m_BarSizeRatio > 0.0f) {
             if ((puZonesOrdered.empty() && InAppGpuQueryZone::sShowLeafMode) || !InAppGpuQueryZone::sShowLeafMode) {
                 ImGui::PushID(this);
                 m_BarLabel = toStr("%s (%.1f ms | %.1f f/s)", puName.c_str(), m_ElapsedTime, 1000.0f / m_ElapsedTime);
                 const char* label = m_BarLabel.c_str();
                 const ImGuiID id = window->GetID(label);
+
                 ImGui::PopID();
+
+                float bar_start = aw * m_BarStartRatio;
+                float bar_size = aw * m_BarSizeRatio;
 
                 const ImVec2 label_size = ImGui::CalcTextSize(label, nullptr, true);
                 const float height = label_size.y + style.FramePadding.y * 2.0f;
-                const ImVec2 bPos = ImVec2(m_BarStart + style.FramePadding.x, vDepth * height + style.FramePadding.y);
-                const ImVec2 bSize = ImVec2(m_BarSize - style.FramePadding.x, 0.0f);
+                const ImVec2 bPos = ImVec2(bar_start + style.FramePadding.x, vDepth * height + style.FramePadding.y);
+                const ImVec2 bSize = ImVec2(bar_size - style.FramePadding.x, 0.0f);
 
                 const ImVec2 pos = window->DC.CursorPos + bPos;
-                const ImVec2 size = ImVec2(m_BarSize, height);
+                const ImVec2 size = ImVec2(bar_size, height);
 
                 const ImRect bb(pos, pos + size);
                 bool hovered, held;
@@ -382,15 +391,10 @@ bool InAppGpuQueryZone::DrawHorizontalFlameGraph(IAGPQueryZonePtr vParent, uint3
                     ImGui::SetTooltip("section %s : %s\nElapsed time : %.05f ms\nElapsed FPS : %.05f f/s", //
                         m_SectionName.c_str(), puName.c_str(), m_ElapsedTime, 1000.0f / m_ElapsedTime);
                     m_Highlighted = true;  // to highlight label graph by this button
-                } else if (m_Highlighted)
+                } else if (m_Highlighted) {
                     hovered = true;  // highlight this button by the label graph
-
-                // Render
-                if (puTopQuery != nullptr) {
-                    hsv = ImVec4((float)(0.5 - m_ElapsedTime * 0.5 / puTopQuery->m_ElapsedTime), 0.5f, 1.0f, 1.0f);
-                } else {
-                    DEBUG_BREAK;
                 }
+
                 ImGui::ColorConvertHSVtoRGB(hsv.x, hsv.y, hsv.z, cv4.x, cv4.y, cv4.z);
                 cv4.w = 1.0f;
                 ImGui::RenderNavHighlight(bb, id);
@@ -447,34 +451,29 @@ bool InAppGpuQueryZone::DrawCircularFlameGraph(IAGPQueryZonePtr vParent, uint32_
         return pressed;
     }
 
-    if (!vParent.use_count()) {
+    if (vParent == nullptr) {
         vParent = puThis;
+    }
+
+    if (puTopQuery == nullptr) {
         puTopQuery = puThis;
     }
 
-    /* we must draw arcs
+    /* 
+    * we must draw arcs
     * total perimeter of an arc will be 
     * radius = ImMin(aw.x, aw.y);
     * perimter = 2.0 * PI * Radius
-    * 
     */
 
-    const float& space = 5.0f;
-    const float& thick = 15.0f; // 
-    float min_radius = 100.0f + space * vDepth + thick * vDepth;
-    float max_radius = 100.0f + space * vDepth + thick * (vDepth + 1U);
-    const float& _PI_ = 3.14159f;
-    const float& _2PI_ = 6.28318f;
-    float min_perimeter = _PI_ * 2.0f * min_radius;
-    float max_perimeter = _PI_ * 2.0f * max_radius;
-    auto count_points_on_arc = 80;
-
-    if (m_ElapsedTime > 0.0) {
+    if (puTopQuery != nullptr && m_ElapsedTime > 0.0) {
         if (vDepth == 0) {
             m_BarSizeRatio = 1.0f;
             m_BarStartRatio = 0.0f;
+            hsv = ImVec4((float)(0.5 - m_ElapsedTime * 0.5 / puTopQuery->m_ElapsedTime), 0.5f, 1.0f, 1.0f);
         } else if (vParent->m_ElapsedTime > 0.0) {
             puTopQuery = vParent->puTopQuery;
+
             ////////////////////////////////////////////////////////
             // for correct rounding isssue with average values
             if (vParent->m_StartTime > m_StartTime) {
@@ -494,51 +493,62 @@ bool InAppGpuQueryZone::DrawCircularFlameGraph(IAGPQueryZonePtr vParent, uint32_
                 m_ElapsedTime = vParent->m_ElapsedTime;
             }
             ////////////////////////////////////////////////////////
-            m_BarStartRatio = (float)((m_StartTime - vParent->m_StartTime) / vParent->m_ElapsedTime);
-            m_BarSizeRatio = (float)(m_ElapsedTime / vParent->m_ElapsedTime);
+
+            m_BarStartRatio = (m_StartTime - puTopQuery->m_StartTime) / puTopQuery->m_ElapsedTime;
+            m_BarSizeRatio = m_ElapsedTime / puTopQuery->m_ElapsedTime;
+            hsv = ImVec4((float)(0.5 - m_ElapsedTime * 0.5 / puTopQuery->m_ElapsedTime), 0.5f, 1.0f, 1.0f);
         }
 
-        if (m_BarSize > 0.0f) {
+        if (m_BarSizeRatio > 0.0f) {
             if ((puZonesOrdered.empty() && InAppGpuQueryZone::sShowLeafMode) || !InAppGpuQueryZone::sShowLeafMode) {
-                if (puTopQuery != nullptr) {
-                    hsv = ImVec4((float)(0.5 - m_ElapsedTime * 0.5 / puTopQuery->m_ElapsedTime), 0.5f, 1.0f, 1.0f);
-                } else {
-                    DEBUG_BREAK;
-                }
                 ImGui::ColorConvertHSVtoRGB(hsv.x, hsv.y, hsv.z, cv4.x, cv4.y, cv4.z);
                 cv4.w = 1.0f;
 
+                const float& scale_x = 1.0f;
+                const float& scale_y = 1.0f;
+                const float& base_radius = 50.0f;
+                const float& space = 3.0f;
+                const float& thick = 15.0f;  //
+                float min_radius = base_radius + space * vDepth + thick * vDepth;
+                float max_radius = base_radius + space * vDepth + thick * (vDepth + 1U);
+                const float _PI_ = 3.1415926535897932384626433832795f;
+                const float _2PI_ = _PI_ * 2.0f;
+
                 auto draw_list_ptr = window->DrawList;
                 auto colU32 = ImGui::GetColorU32(cv4);
+                auto blackU32 = ImGui::GetColorU32(ImVec4(0,0,0,1));
                 ImVec2 p0, p1, lp0, lp1;
 
-                float count_point = 60.0f; // 60 for 2pi
-                float base_st = _2PI_ / count_point;
+                float full_length = _PI_;
+                float full_offset = _PI_;
 
-                float full_len = _2PI_ * vParent->m_BarSizeRatio;
-                float section_len = full_len * m_BarSizeRatio;
-                float ac = m_BarStartRatio * section_len;
-                float st = section_len / _2PI_ * base_st; 
+                float count_point = 240.0f; // 60 for 2pi
+                float base_st = full_length / count_point;
 
-                //printf("=========================\n");
-                //printf("== Depth : %u\n", vDepth);
-                //printf("== Start : %.5f\n", ac);
-                //printf("== End : %.5f\n", section_len);
+                float bar_start = full_length * m_BarStartRatio;
+                float bar_size = full_length * (m_BarStartRatio + m_BarSizeRatio);
+                float st = bar_size / ImMax(floor(bar_size / base_st), 2.0f); // 2 points mini
 
-                for (uint32_t idx = 0U; ac < section_len; ac += st, ++idx) {
-                    p0.x = std::cosf(ac) * min_radius + center.x;
-                    p0.y = std::sinf(ac) * min_radius + center.y;
-                    p1.x = std::cosf(ac) * max_radius + center.x;
-                    p1.y = std::sinf(ac) * max_radius + center.y;
-                    if (idx > 0U) {
+                float co = 0.0f, si = 0.0f;
+                float ac = 0.0;
+                for (ac = bar_start; ac < bar_size; ac += st) {
+                    ac = ImMin(ac, bar_size);
+                    co = std::cos(ac + full_offset) * scale_x;
+                    si = std::sin(ac + full_offset) * scale_y;
+                    p0.x = co * min_radius + center.x;
+                    p0.y = si * min_radius + center.y;
+                    p1.x = co * max_radius + center.x;
+                    p1.y = si * max_radius + center.y;
+                    if (ac > bar_start) {
                         draw_list_ptr->AddQuadFilled(p0, p1, lp1, lp0, colU32);
+                        //draw_list_ptr->AddQuad(p0, p1, lp1, lp0, blackU32, 1.0f);
                     }
                     lp0 = p0;
                     lp1 = p1;
                 }
 
 #ifdef _DEBUG
-                draw_list_ptr->AddLine(center, center - ImVec2(0, 150.0f), colU32, 2.0f);
+                //draw_list_ptr->AddLine(center, center - ImVec2(0, 150.0f), colU32, 2.0f);
 #endif
 
                 ++vDepth;
