@@ -66,7 +66,13 @@ typedef std::weak_ptr<InAppGpuQueryZone> IAGPQueryZoneWeak;
 class InAppGpuGLContext;
 typedef std::shared_ptr<InAppGpuGLContext> IAGPContextPtr;
 
-template<typename T>
+enum InAppGpuGraphTypeEnum {
+    IN_APP_GPU_HORIZONTAL = 0,
+    IN_APP_GPU_CIRCULAR,
+    IN_APP_GPU_Count
+};
+
+template <typename T>
 class InAppGpuAverageValue {
 private:
     static constexpr uint32_t sCountAverageValues = 60U;
@@ -149,6 +155,16 @@ private:
     float m_BarStartRatio = 0.0;
     ImVec4 cv4;
     ImVec4 hsv;
+    InAppGpuGraphTypeEnum m_GraphType;
+
+    // circular
+    struct circularSettings {
+        const float& scaleX = 1.0f;
+        const float& scaleY = 1.0f;
+        const float& base_radius = 50.0f;
+        const float& space = 3.0f;
+        const float& thick = 15.0f;
+    } m_CircularSettings;
 
 public:
     InAppGpuQueryZone() = default;
@@ -159,8 +175,12 @@ public:
     void SetEndTimeStamp(const GLuint64& vValue);
     void ComputeElapsedTime();
     void DrawDetails();
-    bool DrawHorizontalFlameGraph(IAGPQueryZonePtr vParent = nullptr, uint32_t vDepth = 0);
-    bool DrawCircularFlameGraph(IAGPQueryZonePtr vParent = nullptr, uint32_t vDepth = 0);
+    bool DrawFlamGraph(InAppGpuGraphTypeEnum vGraphType, IAGPQueryZonePtr vParent = nullptr, uint32_t vDepth = 0);
+
+private:
+    bool m_ComputeRatios(IAGPQueryZonePtr vParent, uint32_t vDepth);
+    bool m_DrawHorizontalFlameGraph(IAGPQueryZonePtr vParent = nullptr, uint32_t vDepth = 0);
+    bool m_DrawCircularFlameGraph(IAGPQueryZonePtr vParent = nullptr, uint32_t vDepth = 0);
 };
 
 class IN_APP_GPU_PROFILER_API InAppGpuGLContext {
@@ -177,8 +197,7 @@ public:
     void Init();
     void Unit();
     void Collect();
-    void DrawHorizontalFlameGraph();
-    void DrawCircularFlameGraph();
+    void DrawFlamGraph(const InAppGpuGraphTypeEnum& vGraphType);
     void DrawDetails();
     IAGPQueryZonePtr GetQueryZoneForName(const std::string& vName, const std::string& vSection = "", const bool& vIsRoot = false);
 
@@ -207,16 +226,19 @@ public:
 
 private:
     std::unordered_map<intptr_t, IAGPContextPtr> m_Contexts;
+    InAppGpuGraphTypeEnum m_GraphType = InAppGpuGraphTypeEnum::IN_APP_GPU_HORIZONTAL;
 
 public:
     void Clear();
     void Init();
     void Unit();
     void Collect();
-    void DrawHorizontalFlameGraph();
-    void DrawCircularFlameGraph();
+    void DrawFlamGraph();
     void DrawDetails();
     IAGPContextPtr GetContextPtr(GPU_CONTEXT vContext);
+    InAppGpuGraphTypeEnum& GetGraphTypeRef() {
+        return m_GraphType;
+    }
 
 public:
     static InAppGpuProfiler* Instance() {

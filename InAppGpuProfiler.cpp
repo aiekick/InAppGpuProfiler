@@ -51,11 +51,11 @@ SOFTWARE.
 
 #ifndef GET_CURRENT_CONTEXT
 static GPU_CONTEXT GetCurrentContext() {
-    DEBUG_BREAK; // you need to create your own function for get the opengl context
+    DEBUG_BREAK;  // you need to create your own function for get the opengl context
     return nullptr;
 }
 #define GET_CURRENT_CONTEXT GetCurrentContext
-#endif // GET_CURRENT_CONTEXT
+#endif  // GET_CURRENT_CONTEXT
 
 #ifndef SET_CURRENT_CONTEXT
 static void SetCurrentContext(GPU_CONTEXT vContextPtr) {
@@ -140,7 +140,7 @@ static float CalcContrastRatio(const ImU32& backgroundColor, const ImU32& foreGr
 }
 
 static bool PushStyleColorWithContrast(const ImU32& backGroundColor, const ImGuiCol& foreGroundColor, const ImVec4& invertedColor,
-                                              const float& maxContrastRatio) {
+                                       const float& maxContrastRatio) {
     const float contrastRatio = CalcContrastRatio(backGroundColor, ImGui::GetColorU32(foreGroundColor));
     if (contrastRatio < maxContrastRatio) {
         ImGui::PushStyleColor(foreGroundColor, invertedColor);
@@ -170,8 +170,7 @@ bool InAppGpuQueryZone::sShowLeafMode = false;
 float InAppGpuQueryZone::sContrastRatio = 4.3f;
 bool InAppGpuQueryZone::sActivateLogger = false;
 std::vector<IAGPQueryZoneWeak> InAppGpuQueryZone::sTabbedQueryZones = {};
-IAGPQueryZonePtr InAppGpuQueryZone::create(GPU_CONTEXT vContext, const std::string& vName, const std::string& vSectionName,
-                                           const bool& vIsRoot) {
+IAGPQueryZonePtr InAppGpuQueryZone::create(GPU_CONTEXT vContext, const std::string& vName, const std::string& vSectionName, const bool& vIsRoot) {
     auto res = std::make_shared<InAppGpuQueryZone>(vContext, vName, vSectionName, vIsRoot);
     res->m_This = res;
     return res;
@@ -225,10 +224,9 @@ void InAppGpuQueryZone::SetEndTimeStamp(const GLuint64& vValue) {
     m_EndTimeStamp = vValue;
     m_EndFrameId++;
 
-    
 #ifdef DEBUG_MODE_LOGGING
     DEBUG_MODE_LOGGING("%*s end id retrieved : %u", puDepth, "", puIds[1]);
-    #endif
+#endif
     // start computation of elapsed time
     // no needed after
     // will be used for Graph and labels
@@ -258,7 +256,7 @@ void InAppGpuQueryZone::DrawDetails() {
     if (m_StartFrameId) {
         bool res = false;
 
-        ImGui::TableNextColumn(); // tree
+        ImGui::TableNextColumn();  // tree
 
         ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_DefaultOpen;
 
@@ -290,7 +288,7 @@ void InAppGpuQueryZone::DrawDetails() {
             ImGui::Indent();
 
             for (const auto zone : puZonesOrdered) {
-                if (zone.use_count()) {
+                if (zone != nullptr) {
                     zone->DrawDetails();
                 }
             }
@@ -304,29 +302,30 @@ void InAppGpuQueryZone::DrawDetails() {
     }
 }
 
-bool InAppGpuQueryZone::DrawHorizontalFlameGraph(IAGPQueryZonePtr vParent, uint32_t vDepth) {
-    bool pressed = false;
-
+bool InAppGpuQueryZone::DrawFlamGraph(InAppGpuGraphTypeEnum vGraphType, IAGPQueryZonePtr vParent, uint32_t vDepth) {
     ImGuiWindow* window = ImGui::GetCurrentWindow();
-    if (window->SkipItems /* || !m_StartFrameId*/)
-        return pressed;
-
-    const ImGuiContext& g = *GImGui;
-    const ImGuiStyle& style = g.Style;
-    const float aw = ImGui::GetContentRegionAvail().x - style.FramePadding.x;
-
-    if (puDepth > InAppGpuQueryZone::sMaxDepthToOpen) {
-        return pressed;
+    if (window->SkipItems) {
+        return false;
     }
+    
+    bool pressed = false;
+    switch (vGraphType) {
+        case InAppGpuGraphTypeEnum::IN_APP_GPU_HORIZONTAL: pressed = m_DrawHorizontalFlameGraph(vParent, vDepth); break;
+        case InAppGpuGraphTypeEnum::IN_APP_GPU_CIRCULAR: pressed = m_DrawCircularFlameGraph(vParent, vDepth); break;
+    }
+    return pressed;
+}
 
+bool InAppGpuQueryZone::m_ComputeRatios(IAGPQueryZonePtr vParent, uint32_t vDepth) {
+    if (puDepth > InAppGpuQueryZone::sMaxDepthToOpen) {
+        return false;
+    }
     if (vParent == nullptr) {
         vParent = puThis;
     }
-
     if (puTopQuery == nullptr) {
         puTopQuery = puThis;
     }
-
     if (puTopQuery != nullptr && m_ElapsedTime > 0.0) {
         if (vDepth == 0) {
             m_BarSizeRatio = 1.0f;
@@ -359,27 +358,33 @@ bool InAppGpuQueryZone::DrawHorizontalFlameGraph(IAGPQueryZonePtr vParent, uint3
             m_BarSizeRatio = m_ElapsedTime / puTopQuery->m_ElapsedTime;
             hsv = ImVec4((float)(0.5 - m_ElapsedTime * 0.5 / puTopQuery->m_ElapsedTime), 0.5f, 1.0f, 1.0f);
         }
+        return true;
+    }
+    return false;
+}
 
+bool InAppGpuQueryZone::m_DrawHorizontalFlameGraph(IAGPQueryZonePtr vParent, uint32_t vDepth) {
+    bool pressed = false;
+    const ImGuiContext& g = *GImGui;
+    const ImGuiStyle& style = g.Style;
+    const float aw = ImGui::GetContentRegionAvail().x - style.FramePadding.x;
+    ImGuiWindow* window = ImGui::GetCurrentWindow();
+    if (m_ComputeRatios(vParent, vDepth)){
         if (m_BarSizeRatio > 0.0f) {
             if ((puZonesOrdered.empty() && InAppGpuQueryZone::sShowLeafMode) || !InAppGpuQueryZone::sShowLeafMode) {
                 ImGui::PushID(this);
                 m_BarLabel = toStr("%s (%.1f ms | %.1f f/s)", puName.c_str(), m_ElapsedTime, 1000.0f / m_ElapsedTime);
                 const char* label = m_BarLabel.c_str();
                 const ImGuiID id = window->GetID(label);
-
                 ImGui::PopID();
-
                 float bar_start = aw * m_BarStartRatio;
                 float bar_size = aw * m_BarSizeRatio;
-
                 const ImVec2 label_size = ImGui::CalcTextSize(label, nullptr, true);
                 const float height = label_size.y + style.FramePadding.y * 2.0f;
                 const ImVec2 bPos = ImVec2(bar_start + style.FramePadding.x, vDepth * height + style.FramePadding.y);
                 const ImVec2 bSize = ImVec2(bar_size - style.FramePadding.x, 0.0f);
-
                 const ImVec2 pos = window->DC.CursorPos + bPos;
                 const ImVec2 size = ImVec2(bar_size, height);
-
                 const ImRect bb(pos, pos + size);
                 bool hovered, held;
                 pressed = ImGui::ButtonBehavior(bb, id, &hovered, &held, ImGuiButtonFlags_PressedOnClick);
@@ -388,13 +393,12 @@ bool InAppGpuQueryZone::DrawHorizontalFlameGraph(IAGPQueryZonePtr vParent, uint3
                 }
                 m_Highlighted = false;
                 if (hovered) {
-                    ImGui::SetTooltip("section %s : %s\nElapsed time : %.05f ms\nElapsed FPS : %.05f f/s", //
-                        m_SectionName.c_str(), puName.c_str(), m_ElapsedTime, 1000.0f / m_ElapsedTime);
+                    ImGui::SetTooltip("section %s : %s\nElapsed time : %.05f ms\nElapsed FPS : %.05f f/s",  //
+                                      m_SectionName.c_str(), puName.c_str(), m_ElapsedTime, 1000.0f / m_ElapsedTime);
                     m_Highlighted = true;  // to highlight label graph by this button
                 } else if (m_Highlighted) {
                     hovered = true;  // highlight this button by the label graph
                 }
-
                 ImGui::ColorConvertHSVtoRGB(hsv.x, hsv.y, hsv.z, cv4.x, cv4.y, cv4.z);
                 cv4.w = 1.0f;
                 ImGui::RenderNavHighlight(bb, id);
@@ -412,10 +416,9 @@ bool InAppGpuQueryZone::DrawHorizontalFlameGraph(IAGPQueryZonePtr vParent, uint3
             }
 
             // we dont show child if this one have elapsed time to 0.0
-            // childs
             for (const auto zone : puZonesOrdered) {
-                if (zone.use_count()) {
-                    pressed |= zone->DrawHorizontalFlameGraph(puThis, vDepth);
+                if (zone != nullptr) {
+                    pressed |= zone->m_DrawHorizontalFlameGraph(puThis, vDepth);
                 }
             }
         }
@@ -425,130 +428,66 @@ bool InAppGpuQueryZone::DrawHorizontalFlameGraph(IAGPQueryZonePtr vParent, uint3
         const ImVec2 pos = window->DC.CursorPos;
         const ImVec2 size = ImVec2(aw, ImGui::GetFrameHeight() * (InAppGpuScopedZone::sMaxDepth + 1U));
         ImGui::ItemSize(size);
-
         const ImRect bb(pos, pos + size);
         const ImGuiID id = window->GetID((puName + "##canvas").c_str());
-        if (!ImGui::ItemAdd(bb, id))
+        if (!ImGui::ItemAdd(bb, id)) {
             return pressed;
+        }
     }
 
     return pressed;
 }
 
-bool InAppGpuQueryZone::DrawCircularFlameGraph(IAGPQueryZonePtr vParent, uint32_t vDepth) {
+bool InAppGpuQueryZone::m_DrawCircularFlameGraph(IAGPQueryZonePtr vParent, uint32_t vDepth) {
     bool pressed = false;
-
     ImGuiWindow* window = ImGui::GetCurrentWindow();
-    if (window->SkipItems /* || !m_StartFrameId*/)
-        return pressed;
-
-    const ImGuiContext& g = *GImGui;
-    const ImGuiStyle& style = g.Style;
-    const ImVec2 aw = ImGui::GetContentRegionAvail() - style.FramePadding;
-    ImVec2 center = window->DC.CursorPos + ImGui::GetContentRegionAvail() * 0.5f;
-
-    if (puDepth > InAppGpuQueryZone::sMaxDepthToOpen) {
-        return pressed;
-    }
-
-    if (vParent == nullptr) {
-        vParent = puThis;
-    }
-
-    if (puTopQuery == nullptr) {
-        puTopQuery = puThis;
-    }
-
-    /* 
-    * we must draw arcs
-    * total perimeter of an arc will be 
-    * radius = ImMin(aw.x, aw.y);
-    * perimter = 2.0 * PI * Radius
-    */
-
-    if (puTopQuery != nullptr && m_ElapsedTime > 0.0) {
-        if (vDepth == 0) {
-            m_BarSizeRatio = 1.0f;
-            m_BarStartRatio = 0.0f;
-            hsv = ImVec4((float)(0.5 - m_ElapsedTime * 0.5 / puTopQuery->m_ElapsedTime), 0.5f, 1.0f, 1.0f);
-        } else if (vParent->m_ElapsedTime > 0.0) {
-            puTopQuery = vParent->puTopQuery;
-
-            ////////////////////////////////////////////////////////
-            // for correct rounding isssue with average values
-            if (vParent->m_StartTime > m_StartTime) {
-                m_StartTime = vParent->m_StartTime;
-            }
-            if (vParent->m_EndTime < m_EndTime) {
-                m_EndTime = vParent->m_EndTime;
-            }
-            if (m_EndTime < m_StartTime) {
-                m_EndTime = m_StartTime;
-            }
-            m_ElapsedTime = m_EndTime - m_StartTime;
-            if (m_ElapsedTime < 0.0) {
-                DEBUG_BREAK;
-            }
-            if (m_ElapsedTime > vParent->m_ElapsedTime) {
-                m_ElapsedTime = vParent->m_ElapsedTime;
-            }
-            ////////////////////////////////////////////////////////
-
-            m_BarStartRatio = (m_StartTime - puTopQuery->m_StartTime) / puTopQuery->m_ElapsedTime;
-            m_BarSizeRatio = m_ElapsedTime / puTopQuery->m_ElapsedTime;
-            hsv = ImVec4((float)(0.5 - m_ElapsedTime * 0.5 / puTopQuery->m_ElapsedTime), 0.5f, 1.0f, 1.0f);
-        }
-
+    if (m_ComputeRatios(vParent, vDepth)) {
         if (m_BarSizeRatio > 0.0f) {
             if ((puZonesOrdered.empty() && InAppGpuQueryZone::sShowLeafMode) || !InAppGpuQueryZone::sShowLeafMode) {
+                ImVec2 center = window->DC.CursorPos + ImGui::GetContentRegionAvail() * 0.5f;
                 ImGui::ColorConvertHSVtoRGB(hsv.x, hsv.y, hsv.z, cv4.x, cv4.y, cv4.z);
                 cv4.w = 1.0f;
 
-                const float& scale_x = 1.0f;
-                const float& scale_y = 1.0f;
-                const float& base_radius = 50.0f;
-                const float& space = 3.0f;
-                const float& thick = 15.0f;  //
-                float min_radius = base_radius + space * vDepth + thick * vDepth;
-                float max_radius = base_radius + space * vDepth + thick * (vDepth + 1U);
+                float min_radius = m_CircularSettings.base_radius + m_CircularSettings.space * vDepth + m_CircularSettings.thick * vDepth;
+                float max_radius = m_CircularSettings.base_radius + m_CircularSettings.space * vDepth + m_CircularSettings.thick * (vDepth + 1U);
                 const float _PI_ = 3.1415926535897932384626433832795f;
                 const float _2PI_ = _PI_ * 2.0f;
 
                 auto draw_list_ptr = window->DrawList;
                 auto colU32 = ImGui::GetColorU32(cv4);
-                auto blackU32 = ImGui::GetColorU32(ImVec4(0,0,0,1));
+                auto blackU32 = ImGui::GetColorU32(ImVec4(0, 0, 0, 1));
                 ImVec2 p0, p1, lp0, lp1;
 
                 float full_length = _PI_;
                 float full_offset = _PI_;
 
-                float count_point = 240.0f; // 60 for 2pi
+                float count_point = 240.0f;  // 60 for 2pi
                 float base_st = full_length / count_point;
 
                 float bar_start = full_length * m_BarStartRatio;
                 float bar_size = full_length * (m_BarStartRatio + m_BarSizeRatio);
-                float st = bar_size / ImMax(floor(bar_size / base_st), 2.0f); // 2 points mini
+                float st = bar_size / ImMax(floor(bar_size / base_st), 2.0f);  // 2 points mini
 
                 float co = 0.0f, si = 0.0f;
                 float ac = 0.0;
                 for (ac = bar_start; ac < bar_size; ac += st) {
                     ac = ImMin(ac, bar_size);
-                    co = std::cos(ac + full_offset) * scale_x;
-                    si = std::sin(ac + full_offset) * scale_y;
+                    co = std::cos(ac + full_offset) * m_CircularSettings.scaleX;
+                    si = std::sin(ac + full_offset) * m_CircularSettings.scaleY;
                     p0.x = co * min_radius + center.x;
                     p0.y = si * min_radius + center.y;
                     p1.x = co * max_radius + center.x;
                     p1.y = si * max_radius + center.y;
                     if (ac > bar_start) {
                         draw_list_ptr->AddQuadFilled(p0, p1, lp1, lp0, colU32);
-                        //draw_list_ptr->AddQuad(p0, p1, lp1, lp0, blackU32, 1.0f);
+                        // draw_list_ptr->AddQuad(p0, p1, lp1, lp0, blackU32, 1.0f);
                     }
                     lp0 = p0;
                     lp1 = p1;
                 }
 
 #ifdef _DEBUG
-                //draw_list_ptr->AddLine(center, center - ImVec2(0, 150.0f), colU32, 2.0f);
+                // draw_list_ptr->AddLine(center, center - ImVec2(0, 150.0f), colU32, 2.0f);
 #endif
 
                 ++vDepth;
@@ -557,8 +496,8 @@ bool InAppGpuQueryZone::DrawCircularFlameGraph(IAGPQueryZonePtr vParent, uint32_
             // we dont show child if this one have elapsed time to 0.0
             // childs
             for (const auto zone : puZonesOrdered) {
-                if (zone.use_count()) {
-                    pressed |= zone->DrawCircularFlameGraph(puThis, vDepth);
+                if (zone != nullptr) {
+                    pressed |= zone->m_DrawCircularFlameGraph(puThis, vDepth);
                 }
             }
         }
@@ -571,7 +510,8 @@ bool InAppGpuQueryZone::DrawCircularFlameGraph(IAGPQueryZonePtr vParent, uint32_
 /////////////////////// GL CONTEXT /////////////////////////
 ////////////////////////////////////////////////////////////
 
-InAppGpuGLContext::InAppGpuGLContext(GPU_CONTEXT vContext) : m_Context(vContext) {}
+InAppGpuGLContext::InAppGpuGLContext(GPU_CONTEXT vContext) : m_Context(vContext) {
+}
 
 void InAppGpuGLContext::Clear() {
     m_RootZone.reset();
@@ -580,7 +520,8 @@ void InAppGpuGLContext::Clear() {
     m_DepthToLastZone.clear();
 }
 
-void InAppGpuGLContext::Init() {}
+void InAppGpuGLContext::Init() {
+}
 
 void InAppGpuGLContext::Unit() {
     Clear();
@@ -596,7 +537,6 @@ void InAppGpuGLContext::Collect() {
         GLuint id = *it;
         GLuint value = 0;
         glGetQueryObjectuiv(id, GL_QUERY_RESULT_AVAILABLE, &value);
-        CheckGLErrors;
         const auto it_to_erase_eventually = it;
 
         ++it;
@@ -604,10 +544,9 @@ void InAppGpuGLContext::Collect() {
         if (value == GL_TRUE /* || id == m_RootZone->puIds[0] || id == m_RootZone->puIds[1]*/) {
             GLuint64 value64 = 0;
             glGetQueryObjectui64v(id, GL_QUERY_RESULT, &value64);
-            CheckGLErrors;
             if (m_QueryIDToZone.find(id) != m_QueryIDToZone.end()) {
                 auto ptr = m_QueryIDToZone[id];
-                if (ptr.use_count()) {
+                if (ptr != nullptr) {
                     if (id == ptr->puIds[0])
                         ptr->SetStartTimeStamp(value64);
                     else if (id == ptr->puIds[1])
@@ -619,7 +558,7 @@ void InAppGpuGLContext::Collect() {
             m_PendingUpdate.erase(it_to_erase_eventually);
         } else {
             auto ptr = m_QueryIDToZone[id];
-            if (ptr.use_count()) {
+            if (ptr != nullptr) {
                 LOG_ERROR_MESSAGE("%*s id not retrieved : %u", ptr->puDepth, "", id);
             }
         }
@@ -630,26 +569,19 @@ void InAppGpuGLContext::Collect() {
 #endif
 }
 
-void InAppGpuGLContext::DrawHorizontalFlameGraph() {
-    if (m_RootZone.use_count()) {
-        m_RootZone->DrawHorizontalFlameGraph();
-    }
-}
-
-void InAppGpuGLContext::DrawCircularFlameGraph() {
-    if (m_RootZone.use_count()) {
-        m_RootZone->DrawCircularFlameGraph();
+void InAppGpuGLContext::DrawFlamGraph(const InAppGpuGraphTypeEnum& vGraphType) {
+    if (m_RootZone != nullptr) {
+        m_RootZone->DrawFlamGraph(vGraphType);
     }
 }
 
 void InAppGpuGLContext::DrawDetails() {
-    if (m_RootZone.use_count()) {
+    if (m_RootZone != nullptr) {
         m_RootZone->DrawDetails();
     }
 }
 
-IAGPQueryZonePtr InAppGpuGLContext::GetQueryZoneForName(const std::string& vName, const std::string& vSection,
-                                                                          const bool& vIsRoot) {
+IAGPQueryZonePtr InAppGpuGLContext::GetQueryZoneForName(const std::string& vName, const std::string& vSection, const bool& vIsRoot) {
     IAGPQueryZonePtr res = nullptr;
 
     /////////////////////////////////////////////
@@ -664,11 +596,11 @@ IAGPQueryZonePtr InAppGpuGLContext::GetQueryZoneForName(const std::string& vName
     if (InAppGpuScopedZone::sCurrentDepth == 0) {
 #ifdef DEBUG_MODE_LOGGING
         DEBUG_MODE_LOGGING("------ Start Frame -----");
-        #endif
+#endif
         m_DepthToLastZone.clear();
-        if (!m_RootZone.use_count()) {
+        if (m_RootZone == nullptr) {
             res = std::make_shared<InAppGpuQueryZone>(m_Context, vName, vSection, vIsRoot);
-            if (res.use_count()) {
+            if (res != nullptr) {
                 res->puThis = res;
                 res->puDepth = InAppGpuScopedZone::sCurrentDepth;
                 m_QueryIDToZone[res->puIds[0]] = res;
@@ -677,17 +609,17 @@ IAGPQueryZonePtr InAppGpuGLContext::GetQueryZoneForName(const std::string& vName
 
 #ifdef DEBUG_MODE_LOGGING
                 DEBUG_MODE_LOGGING("Profile : add zone %s at puDepth %u", vName.c_str(), InAppGpuScopedZone::sCurrentDepth);
-                #endif
+#endif
             }
         } else {
             res = m_RootZone;
         }
     } else {  // else child zone
         auto root = GetQueryZoneFromDepth(InAppGpuScopedZone::sCurrentDepth - 1U);
-        if (root.use_count()) {
+        if (root != nullptr) {
             if (root->puZonesDico.find(vName) == root->puZonesDico.end()) {  // not found
                 res = InAppGpuQueryZone::create(m_Context, vName, vSection, vIsRoot);
-                if (res.use_count()) {
+                if (res != nullptr) {
                     res->puThis = res;
                     res->puDepth = InAppGpuScopedZone::sCurrentDepth;
                     m_QueryIDToZone[res->puIds[0]] = res;
@@ -697,7 +629,7 @@ IAGPQueryZonePtr InAppGpuGLContext::GetQueryZoneForName(const std::string& vName
 
 #ifdef DEBUG_MODE_LOGGING
                     DEBUG_MODE_LOGGING("Profile : add zone %s at puDepth %u", vName.c_str(), InAppGpuScopedZone::sCurrentDepth);
-                    #endif
+#endif
                 } else {
                     DEBUG_BREAK;
                 }
@@ -713,14 +645,14 @@ IAGPQueryZonePtr InAppGpuGLContext::GetQueryZoneForName(const std::string& vName
     //////////////// UTILISATION ////////////////
     /////////////////////////////////////////////
 
-    if (res.use_count()) {
+    if (res != nullptr) {
         SetQueryZoneForDepth(res, InAppGpuScopedZone::sCurrentDepth);
 
         if (res->puName != vName) {
 #ifdef _DEBUG
             // at puDepth 0 there is only one frame
             LOG_DEBUG_ERROR_MESSAGE("was registerd at depth %u %s. but we got %s\nwe clear the profiler",  //
-                          InAppGpuScopedZone::sCurrentDepth, res->puName.c_str(), vName.c_str());
+                                    InAppGpuScopedZone::sCurrentDepth, res->puName.c_str(), vName.c_str());
             // maybe the scoped frame is taken outside of the main frame
 #endif
             Clear();
@@ -785,13 +717,13 @@ void InAppGpuProfiler::Collect() {
     glFinish();
 
     for (const auto& con : m_Contexts) {
-        if (con.second.use_count()) {
+        if (con.second != nullptr) {
             con.second->Collect();
         }
     }
 }
 
-void InAppGpuProfiler::DrawHorizontalFlameGraph() {
+void InAppGpuProfiler::DrawFlamGraph() {
     if (!puIsActive) {
         return;
     }
@@ -805,36 +737,22 @@ void InAppGpuProfiler::DrawHorizontalFlameGraph() {
 
         ImGui::Checkbox("Logging", &InAppGpuQueryZone::sActivateLogger);
 
-        ImGui::EndMenuBar();
-    }
-
-    for (const auto& con : m_Contexts) {
-        if (con.second.use_count()) {
-            con.second->DrawHorizontalFlameGraph();
+        if (ImGui::BeginMenu("Graph Types")) {
+            if (ImGui::MenuItem("Horizontal", nullptr, m_GraphType == iagp::InAppGpuGraphTypeEnum::IN_APP_GPU_HORIZONTAL)) {
+                m_GraphType = iagp::InAppGpuGraphTypeEnum::IN_APP_GPU_HORIZONTAL;
+            }
+            if (ImGui::MenuItem("Circular", nullptr, m_GraphType == iagp::InAppGpuGraphTypeEnum::IN_APP_GPU_CIRCULAR)) {
+                m_GraphType = iagp::InAppGpuGraphTypeEnum::IN_APP_GPU_CIRCULAR;
+            }
+            ImGui::EndMenu();
         }
-    }
-}
-
-void InAppGpuProfiler::DrawCircularFlameGraph() {
-    if (!puIsActive) {
-        return;
-    }
-
-    if (ImGui::BeginMenuBar()) {
-        if (InAppGpuScopedZone::sMaxDepth) {
-            InAppGpuQueryZone::sMaxDepthToOpen = InAppGpuScopedZone::sMaxDepth;
-        }
-
-        IMGUI_PLAY_PAUSE_BUTTON(puIsPaused);
-
-        ImGui::Checkbox("Logging", &InAppGpuQueryZone::sActivateLogger);
 
         ImGui::EndMenuBar();
     }
 
     for (const auto& con : m_Contexts) {
-        if (con.second.use_count()) {
-            con.second->DrawCircularFlameGraph();
+        if (con.second != nullptr) {
+            con.second->DrawFlamGraph(m_GraphType);
         }
     }
 }
@@ -859,7 +777,7 @@ void InAppGpuProfiler::DrawDetails() {
         ImGui::TableSetupColumn("Elapsed time");
         ImGui::TableHeadersRow();
         for (const auto& con : m_Contexts) {
-            if (con.second.use_count()) {
+            if (con.second != nullptr) {
                 con.second->DrawDetails();
             }
         }
@@ -906,11 +824,10 @@ InAppGpuScopedZone::InAppGpuScopedZone(const bool& vIsRoot, const std::string& v
             queryPtr = context_ptr->GetQueryZoneForName(std::string(TempBuffer, (size_t)w), vSection, vIsRoot);
             if (queryPtr != nullptr) {
                 glQueryCounter(queryPtr->puIds[0], GL_TIMESTAMP);
-                CheckGLErrors;
 
 #ifdef DEBUG_MODE_LOGGING
                 DEBUG_MODE_LOGGING("%*s begin : %u", queryPtr->puDepth, "", queryPtr->puIds[0]);
-                #endif
+#endif
                 sCurrentDepth++;
             }
         }
@@ -918,12 +835,8 @@ InAppGpuScopedZone::InAppGpuScopedZone(const bool& vIsRoot, const std::string& v
 }
 
 InAppGpuScopedZone::~InAppGpuScopedZone() {
-    if (queryPtr.use_count()) {
+    if (queryPtr != nullptr) {
         glQueryCounter(queryPtr->puIds[1], GL_TIMESTAMP);
-        CheckGLErrors;
-        if (!sCurrentDepth) {
-            DEBUG_BREAK;
-        }
         sCurrentDepth--;
     }
 }
