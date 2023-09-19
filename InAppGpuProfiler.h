@@ -143,8 +143,10 @@ private:
     GPU_CONTEXT m_Context;
     std::string m_BarLabel;
     std::string m_SectionName;
-    float m_BarWidth = 0.0f;
-    float m_BarPos = 0.0f;
+    float m_BarSize = 0.0f;
+    float m_BarStart = 0.0f;
+    float m_BarSizeRatio = 0.0;
+    float m_BarStartRatio = 0.0;
     ImVec4 cv4;
     ImVec4 hsv;
 
@@ -157,7 +159,8 @@ public:
     void SetEndTimeStamp(const GLuint64& vValue);
     void ComputeElapsedTime();
     void DrawDetails();
-    bool DrawFlamGraph(IAGPQueryZonePtr vParent = nullptr, uint32_t vDepth = 0);
+    bool DrawHorizontalFlameGraph(IAGPQueryZonePtr vParent = nullptr, uint32_t vDepth = 0);
+    bool DrawCircularFlameGraph(IAGPQueryZonePtr vParent = nullptr, uint32_t vDepth = 0);
 };
 
 class IN_APP_GPU_PROFILER_API InAppGpuGLContext {
@@ -174,7 +177,8 @@ public:
     void Init();
     void Unit();
     void Collect();
-    void DrawFlamGraph();
+    void DrawHorizontalFlameGraph();
+    void DrawCircularFlameGraph();
     void DrawDetails();
     IAGPQueryZonePtr GetQueryZoneForName(const std::string& vName, const std::string& vSection = "", const bool& vIsRoot = false);
 
@@ -209,7 +213,8 @@ public:
     void Init();
     void Unit();
     void Collect();
-    void DrawFlamGraph();
+    void DrawHorizontalFlameGraph();
+    void DrawCircularFlameGraph();
     void DrawDetails();
     IAGPContextPtr GetContextPtr(GPU_CONTEXT vContext);
 
