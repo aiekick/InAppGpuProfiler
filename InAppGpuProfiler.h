@@ -25,7 +25,9 @@ SOFTWARE.
 #pragma once
 
 #include <set>
+#include <cmath>
 #include <memory>
+#include <vector>
 #include <string>
 #include <unordered_map>
 #include <glad/glad.h>

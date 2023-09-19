@@ -526,10 +526,10 @@ bool InAppGpuQueryZone::DrawCircularFlameGraph(IAGPQueryZonePtr vParent, uint32_
                 //printf("== End : %.5f\n", section_len);
 
                 for (uint32_t idx = 0U; ac < section_len; ac += st, ++idx) {
-                    p0.x = std::cosf(ac) * min_radius + center.x;
-                    p0.y = std::sinf(ac) * min_radius + center.y;
-                    p1.x = std::cosf(ac) * max_radius + center.x;
-                    p1.y = std::sinf(ac) * max_radius + center.y;
+                    p0.x = std::cos(ac) * min_radius + center.x;
+                    p0.y = std::sin(ac) * min_radius + center.y;
+                    p1.x = std::cos(ac) * max_radius + center.x;
+                    p1.y = std::sin(ac) * max_radius + center.y;
                     if (idx > 0U) {
                         draw_list_ptr->AddQuadFilled(p0, p1, lp1, lp0, colU32);
                     }
