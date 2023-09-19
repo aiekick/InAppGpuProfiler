@@ -149,7 +149,8 @@ bool show_uniforms = false;
 bool show_controls = false;
 bool show_shader_view = false;
 bool show_profiler_details = false;
-bool show_profiler_flame_graph = true;
+bool show_profiler_horizontal_flame_graph = true;
+bool show_profiler_circular_flame_graph = true;
 int32_t thumbnail_height = 200;
 
 // common uniforms
@@ -440,7 +441,9 @@ void calc_imgui() {
         ImGui::Spacing();
         ImGui::MenuItem("Details", nullptr, &show_profiler_details);
         ImGui::Spacing();
-        ImGui::MenuItem("Flame Graph", nullptr, &show_profiler_flame_graph);
+        ImGui::MenuItem("Horiz Flame Graph", nullptr, &show_profiler_horizontal_flame_graph);
+        ImGui::Spacing();
+        ImGui::MenuItem("Circular Flame Graph", nullptr, &show_profiler_circular_flame_graph);
         ImGui::Spacing();
         if (ImGui::Button("Clear Buffers")) {
             std::array<float, 4U> col = {};
@@ -541,9 +544,9 @@ void calc_imgui() {
         ImGui::End();
     }
 
-    if (show_profiler_flame_graph) {
-        ImGui::Begin("In App Gpu Profiler Flame Graph", &show_profiler_flame_graph, ImGuiWindowFlags_MenuBar);
-        iagp::InAppGpuProfiler::Instance()->DrawFlamGraph();
+    if (show_profiler_horizontal_flame_graph) {
+        ImGui::Begin("In App Gpu Horizontal Profiler Flame Graph", &show_profiler_horizontal_flame_graph, ImGuiWindowFlags_MenuBar);
+        iagp::InAppGpuProfiler::Instance()->DrawHorizontalFlameGraph();
         ImGui::End();
 
         for (auto& queryZone : iagp::InAppGpuQueryZone::sTabbedQueryZones) {
@@ -552,7 +555,32 @@ void calc_imgui() {
                 if (ptr != nullptr) {
                     bool opened = true;
                     ImGui::Begin(ptr->puName.c_str(), &opened, ImGuiWindowFlags_MenuBar);
-                    ptr->DrawFlamGraph(nullptr, 0);
+                    ptr->DrawHorizontalFlameGraph(nullptr, 0);
+                    ImGui::End();
+                    if (!opened) {
+                        // we release the weak
+                        queryZone.reset();
+                        // unfotunatly we dont removed expired pointer
+                        // so with time the for loop will grow up
+                        // but its fast so maybe not a big problem
+                    }
+                }
+            }
+        }
+    }
+
+    if (show_profiler_circular_flame_graph) {
+        ImGui::Begin("In App Gpu Circualr Profiler Flame Graph", &show_profiler_circular_flame_graph, ImGuiWindowFlags_MenuBar);
+        iagp::InAppGpuProfiler::Instance()->DrawCircularFlameGraph();
+        ImGui::End();
+
+        for (auto& queryZone : iagp::InAppGpuQueryZone::sTabbedQueryZones) {
+            if (!queryZone.expired()) {
+                auto ptr = queryZone.lock();
+                if (ptr != nullptr) {
+                    bool opened = true;
+                    ImGui::Begin(ptr->puName.c_str(), &opened, ImGuiWindowFlags_MenuBar);
+                    ptr->DrawCircularFlameGraph(nullptr, 0);
                     ImGui::End();
                     if (!opened) {
                         // we release the weak
