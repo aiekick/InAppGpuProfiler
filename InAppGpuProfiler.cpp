@@ -494,10 +494,8 @@ bool InAppGpuQueryZone::DrawCircularFlameGraph(IAGPQueryZonePtr vParent, uint32_
                 m_ElapsedTime = vParent->m_ElapsedTime;
             }
             ////////////////////////////////////////////////////////
-            const float startRatio = (float)((m_StartTime - vParent->m_StartTime) / vParent->m_ElapsedTime);
-            const float elapsedRatio = (float)(m_ElapsedTime / vParent->m_ElapsedTime);
-            m_BarSizeRatio = elapsedRatio;
-            m_BarStartRatio = startRatio;
+            m_BarStartRatio = (float)((m_StartTime - vParent->m_StartTime) / vParent->m_ElapsedTime);
+            m_BarSizeRatio = (float)(m_ElapsedTime / vParent->m_ElapsedTime);
         }
 
         if (m_BarSize > 0.0f) {
@@ -516,11 +514,18 @@ bool InAppGpuQueryZone::DrawCircularFlameGraph(IAGPQueryZonePtr vParent, uint32_
 
                 float count_point = 60.0f; // 60 for 2pi
                 float base_st = _2PI_ / count_point;
-                float max_len = _2PI_ * vParent->m_BarSizeRatio;
-                float ac = m_BarStartRatio * max_len;
-                float st = max_len / _2PI_ * base_st; 
 
-                for (uint32_t idx = 0U; ac < max_len; ac += st, ++idx) {
+                float full_len = _2PI_ * vParent->m_BarSizeRatio;
+                float section_len = full_len * m_BarSizeRatio;
+                float ac = m_BarStartRatio * section_len;
+                float st = section_len / _2PI_ * base_st; 
+
+                //printf("=========================\n");
+                //printf("== Depth : %u\n", vDepth);
+                //printf("== Start : %.5f\n", ac);
+                //printf("== End : %.5f\n", section_len);
+
+                for (uint32_t idx = 0U; ac < section_len; ac += st, ++idx) {
                     p0.x = std::cosf(ac) * min_radius + center.x;
                     p0.y = std::sinf(ac) * min_radius + center.y;
                     p1.x = std::cosf(ac) * max_radius + center.x;
