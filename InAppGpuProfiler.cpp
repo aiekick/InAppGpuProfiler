@@ -175,6 +175,7 @@ IAGPQueryZonePtr InAppGpuQueryZone::create(GPU_CONTEXT vContext, const std::stri
     res->m_This = res;
     return res;
 }
+InAppGpuQueryZone::circularSettings InAppGpuQueryZone::sCircularSettings;
 
 InAppGpuQueryZone::InAppGpuQueryZone(GPU_CONTEXT vContext, const std::string& vName, const std::string& vSectionName, const bool& vIsRoot)
     : m_Context(vContext), puName(vName), m_IsRoot(vIsRoot), m_SectionName(vSectionName) {
@@ -440,6 +441,20 @@ bool InAppGpuQueryZone::m_DrawHorizontalFlameGraph(IAGPQueryZonePtr vParent, uin
 
 bool InAppGpuQueryZone::m_DrawCircularFlameGraph(IAGPQueryZonePtr vParent, uint32_t vDepth) {
     bool pressed = false;
+
+    if (vDepth == 0U) {
+        if (ImGui::BeginMenuBar()) {
+            if (ImGui::BeginMenu("Settings")) {
+                ImGui::SliderFloat("count points", &sCircularSettings.count_point, 1.0f, 240.0f);
+                ImGui::SliderFloat("base_radius", &sCircularSettings.base_radius, 0.0f, 240.0f);
+                ImGui::SliderFloat("space", &sCircularSettings.space, 0.0f, 240.0f);
+                ImGui::SliderFloat("thick", &sCircularSettings.thick, 0.0f, 240.0f);
+                ImGui::EndMenu();
+            }
+            ImGui::EndMenuBar();
+        }
+    }
+
     ImGuiWindow* window = ImGui::GetCurrentWindow();
     if (m_ComputeRatios(vParent, vDepth)) {
         if (m_BarSizeRatio > 0.0f) {
@@ -448,43 +463,45 @@ bool InAppGpuQueryZone::m_DrawCircularFlameGraph(IAGPQueryZonePtr vParent, uint3
                 ImGui::ColorConvertHSVtoRGB(hsv.x, hsv.y, hsv.z, cv4.x, cv4.y, cv4.z);
                 cv4.w = 1.0f;
 
-                float min_radius = m_CircularSettings.base_radius + m_CircularSettings.space * vDepth + m_CircularSettings.thick * vDepth;
-                float max_radius = m_CircularSettings.base_radius + m_CircularSettings.space * vDepth + m_CircularSettings.thick * (vDepth + 1U);
-                const float _PI_ = 3.1415926535897932384626433832795f;
-                const float _2PI_ = _PI_ * 2.0f;
-
+                float min_radius = sCircularSettings.base_radius + sCircularSettings.space * vDepth + sCircularSettings.thick * vDepth;
+                float max_radius = sCircularSettings.base_radius + sCircularSettings.space * vDepth + sCircularSettings.thick * (vDepth + 1U);
+                
                 auto draw_list_ptr = window->DrawList;
                 auto colU32 = ImGui::GetColorU32(cv4);
-                auto blackU32 = ImGui::GetColorU32(ImVec4(0, 0, 0, 1));
-                ImVec2 p0, p1, lp0, lp1;
 
-                float full_length = _PI_;
-                float full_offset = _PI_;
+                float full_length = _1PI_;
+                float full_offset = _1PI_;
 
-                float count_point = 240.0f;  // 60 for 2pi
-                float base_st = full_length / count_point;
+                float base_st = full_length / sCircularSettings.count_point;
 
                 float bar_start = full_length * m_BarStartRatio;
                 float bar_size = full_length * (m_BarStartRatio + m_BarSizeRatio);
-                float st = bar_size / ImMax(floor(bar_size / base_st), 2.0f);  // 2 points mini
+                float st = bar_size / ImMax(floor(bar_size / base_st), 3.0f);  // 2 points mini par barre
 
-                float co = 0.0f, si = 0.0f;
-                float ac = 0.0;
+                ImVector<ImVec2> path;
+                float co = 0.0f, si = 0.0f, ac = 0.0f, oc = 0.0f;
                 for (ac = bar_start; ac < bar_size; ac += st) {
                     ac = ImMin(ac, bar_size);
-                    co = std::cos(ac + full_offset) * m_CircularSettings.scaleX;
-                    si = std::sin(ac + full_offset) * m_CircularSettings.scaleY;
-                    p0.x = co * min_radius + center.x;
-                    p0.y = si * min_radius + center.y;
-                    p1.x = co * max_radius + center.x;
-                    p1.y = si * max_radius + center.y;
+                    oc = ac + full_offset;
+                    co = std::cos(oc) * sCircularSettings.scaleX;
+                    si = std::sin(oc) * sCircularSettings.scaleY;
+                    m_P0.x = co * min_radius + center.x;
+                    m_P0.y = si * min_radius + center.y;
+                    m_P1.x = co * max_radius + center.x;
+                    m_P1.y = si * max_radius + center.y;
                     if (ac > bar_start) {
-                        draw_list_ptr->AddQuadFilled(p0, p1, lp1, lp0, colU32);
-                        // draw_list_ptr->AddQuad(p0, p1, lp1, lp0, blackU32, 1.0f);
+                        //draw_list_ptr->AddQuadFilled(m_P0, m_P1, m_LP1, m_LP0, colU32);
+                        draw_list_ptr->AddQuad(m_P0, m_P1, m_LP1, m_LP0, colU32, 2.0f); // m_BlackU32
+
+                        //draw_list_ptr->PathLineTo(m_P0);
+                        //draw_list_ptr->PathLineTo(m_P1);
+                        //draw_list_ptr->PathLineTo(m_LP1);
+                        //draw_list_ptr->PathLineTo(m_LP0);
                     }
-                    lp0 = p0;
-                    lp1 = p1;
+                    m_LP0 = m_P0;
+                    m_LP1 = m_P1;
                 }
+                //draw_list_ptr->PathStroke(colU32, ImDrawFlags_Closed, 2.0f);
 
 #ifdef _DEBUG
                 // draw_list_ptr->AddLine(center, center - ImVec2(0, 150.0f), colU32, 2.0f);

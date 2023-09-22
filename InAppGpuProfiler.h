@@ -118,12 +118,23 @@ T InAppGpuAverageValue<T>::GetAverage() {
 
 class IN_APP_GPU_PROFILER_API InAppGpuQueryZone {
 public:
+    struct circularSettings {
+        float count_point = 20.0f;  // 60 for 2pi
+        float scaleX = 1.0f;
+        float scaleY = 1.0f;
+        float base_radius = 50.0f;
+        float space = 5.0f;
+        float thick = 10.0f;
+    };
+
+public:
     static GLuint sMaxDepthToOpen;
     static bool sShowLeafMode;
     static float sContrastRatio;
     static bool sActivateLogger;
     static std::vector<IAGPQueryZoneWeak> sTabbedQueryZones;
     static IAGPQueryZonePtr create(GPU_CONTEXT vContext, const std::string& vName, const std::string& vSectionName, const bool& vIsRoot = false);
+    static circularSettings sCircularSettings;
 
 public:
     IAGPQueryZoneWeak m_This;
@@ -158,13 +169,10 @@ private:
     InAppGpuGraphTypeEnum m_GraphType;
 
     // circular
-    struct circularSettings {
-        const float& scaleX = 1.0f;
-        const float& scaleY = 1.0f;
-        const float& base_radius = 50.0f;
-        const float& space = 3.0f;
-        const float& thick = 15.0f;
-    } m_CircularSettings;
+    const float _1PI_ = 3.141592653589793238462643383279f;
+    const float _2PI_ = 6.283185307179586476925286766559f;
+    const ImU32 m_BlackU32 = ImGui::GetColorU32(ImVec4(0, 0, 0, 1));
+    ImVec2 m_P0, m_P1, m_LP0, m_LP1;
 
 public:
     InAppGpuQueryZone() = default;
