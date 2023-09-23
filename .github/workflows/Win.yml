@@ -21,5 +21,5 @@ jobs:
     - name: upload artifact
       uses: actions/upload-artifact@v3
       with:
-        name: DemoApp_Win32
-        path: bin/DemoApp_Win32
+        name: DemoApp_Win32.exe
+        path: bin/DemoApp_Win32.exe
