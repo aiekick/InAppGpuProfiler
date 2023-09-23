@@ -7,6 +7,8 @@ project(${PROJECT} CXX)
 
 option(USE_NEW_IMGUI_KEY_SYSTEM "Define the symbol IMGUI_DISABLE_OBSOLETE_KEYIO" ON)
 
+set(CMAKE_CXX_STANDARD 11)  
+
 include(cmake/3rdparty.cmake)
 
 if(MSVC)
@@ -71,7 +73,6 @@ elseif(UNIX)
 	set_target_properties(${PROJECT} PROPERTIES OUTPUT_NAME "${PROJECT}_Unix")
 endif()
 
-set(CMAKE_CXX_STANDARD 11)
 set_target_properties(${PROJECT} PROPERTIES CXX_STANDARD 11)
 set_target_properties(InAppGpuProfiler PROPERTIES CXX_STANDARD 11)
 	
