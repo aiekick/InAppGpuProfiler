@@ -26,11 +26,16 @@ SOFTWARE.
 
 #include <set>
 #include <cmath>
+#include <array>
 #include <memory>
 #include <vector>
 #include <string>
+#include <imgui.h>
 #include <unordered_map>
-#include <glad/glad.h>
+
+#ifndef IMGUI_DEFINE_MATH_OPERATORS
+#define IMGUI_DEFINE_MATH_OPERATORS
+#endif  // IMGUI_DEFINE_MATH_OPERATORS
 
 #ifndef CUSTOM_IN_APP_GPU_PROFILER_CONFIG
 #include "InAppGpuProfilerConfig.h"
@@ -53,6 +58,14 @@ SOFTWARE.
 
 #define AIGPCollect iagp::InAppGpuProfiler::Instance()->Collect()
 
+#ifndef RECURSIVE_LEVELS_COUNT
+#define RECURSIVE_LEVELS_COUNT 20U
+#endif  // RECURSIVE_LEVELS_COUNT
+
+#ifndef MEAN_AVERAGE_LEVELS_COUNT
+#define MEAN_AVERAGE_LEVELS_COUNT 60U
+#endif  // MEAN_AVERAGE_LEVELS_COUNT
+
 #ifndef GPU_CONTEXT
 #define GPU_CONTEXT void*
 #endif // GPU_CONTEXT
@@ -65,6 +78,7 @@ typedef std::weak_ptr<InAppGpuQueryZone> IAGPQueryZoneWeak;
 
 class InAppGpuGLContext;
 typedef std::shared_ptr<InAppGpuGLContext> IAGPContextPtr;
+typedef std::weak_ptr<InAppGpuGLContext> IAGPContextWeak;
 
 enum InAppGpuGraphTypeEnum {
     IN_APP_GPU_HORIZONTAL = 0,
@@ -75,7 +89,7 @@ enum InAppGpuGraphTypeEnum {
 template <typename T>
 class InAppGpuAverageValue {
 private:
-    static constexpr uint32_t sCountAverageValues = 60U;
+    static constexpr uint32_t sCountAverageValues = MEAN_AVERAGE_LEVELS_COUNT;
     T m_PerFrame[sCountAverageValues] = {};
     int m_PerFrameIdx = (T)0;
     T m_PerFrameAccum = (T)0;
@@ -137,16 +151,18 @@ public:
     static circularSettings sCircularSettings;
 
 public:
-    IAGPQueryZoneWeak m_This;
-    GLuint puDepth = 0U;  // the puDepth of the QueryZone
-    GLuint puIds[2] = {0U, 0U};
-    std::vector<IAGPQueryZonePtr> puZonesOrdered;
-    std::unordered_map<std::string, IAGPQueryZonePtr> puZonesDico;  // main container
-    std::string puName;
-    IAGPQueryZonePtr puThis = nullptr;
-    IAGPQueryZonePtr puTopQuery = nullptr;
+    GLuint depth = 0U;  // the depth of the QueryZone
+    GLuint ids[2] = {0U, 0U};
+    std::vector<IAGPQueryZonePtr> zonesOrdered;
+    std::unordered_map<std::string, IAGPQueryZonePtr> zonesDico;  // main container
+    std::string name;
+    std::string imGuiLabel;
+    std::string imGuiTitle;
+    IAGPQueryZonePtr parentPtr = nullptr;
+    IAGPQueryZonePtr rootPtr = nullptr;
 
 private:
+    IAGPQueryZoneWeak m_This;
     bool m_IsRoot = false;
     double m_ElapsedTime = 0.0;
     double m_StartTime = 0.0;
@@ -162,11 +178,12 @@ private:
     GPU_CONTEXT m_Context;
     std::string m_BarLabel;
     std::string m_SectionName;
-    float m_BarSizeRatio = 0.0;
-    float m_BarStartRatio = 0.0;
     ImVec4 cv4;
     ImVec4 hsv;
-    InAppGpuGraphTypeEnum m_GraphType;
+    InAppGpuGraphTypeEnum m_GraphType = InAppGpuGraphTypeEnum::IN_APP_GPU_HORIZONTAL;
+
+    // fil d'ariane
+    std::array<IAGPQueryZoneWeak, RECURSIVE_LEVELS_COUNT> m_BreadCrumbTrail; // the parent cound is done by current depth
 
     // circular
     const float _1PI_ = 3.141592653589793238462643383279f;
@@ -183,21 +200,31 @@ public:
     void SetEndTimeStamp(const GLuint64& vValue);
     void ComputeElapsedTime();
     void DrawDetails();
-    bool DrawFlamGraph(InAppGpuGraphTypeEnum vGraphType, IAGPQueryZonePtr vParent = nullptr, uint32_t vDepth = 0);
+    bool DrawFlamGraph(InAppGpuGraphTypeEnum vGraphType, IAGPQueryZoneWeak& vOutSelectedQuery, IAGPQueryZoneWeak vParent = {},
+                       uint32_t vDepth = 0);
+    void updateBreadCrumbTrail();
+    void DrawBreadCrumbTrail(IAGPQueryZoneWeak& vOutSelectedQuery);
 
 private:
-    bool m_ComputeRatios(IAGPQueryZonePtr vParent, uint32_t vDepth);
-    bool m_DrawHorizontalFlameGraph(IAGPQueryZonePtr vParent = nullptr, uint32_t vDepth = 0);
-    bool m_DrawCircularFlameGraph(IAGPQueryZonePtr vParent = nullptr, uint32_t vDepth = 0);
+    bool m_ComputeRatios(IAGPQueryZonePtr vRoot, IAGPQueryZoneWeak vParent, uint32_t vDepth, float& vOutStartRatio, float& vOutSizeRatio);
+    bool m_DrawHorizontalFlameGraph(IAGPQueryZonePtr vRoot, IAGPQueryZoneWeak& vOutSelectedQuery, IAGPQueryZoneWeak vParent,
+                                    uint32_t vDepth);
+    bool m_DrawCircularFlameGraph(IAGPQueryZonePtr vRoot, IAGPQueryZoneWeak& vOutSelectedQuery, IAGPQueryZoneWeak vParent,
+                                  uint32_t vDepth);
 };
 
 class IN_APP_GPU_PROFILER_API InAppGpuGLContext {
 private:
+    IAGPContextWeak m_This;
     GPU_CONTEXT m_Context;
     IAGPQueryZonePtr m_RootZone = nullptr;
+    IAGPQueryZoneWeak m_SelectedQuery; // query to show the flamegraph in this context
     std::unordered_map<GLuint, IAGPQueryZonePtr> m_QueryIDToZone;    // Get the zone for a query id because a query have to id's : start and end
-    std::unordered_map<GLuint, IAGPQueryZonePtr> m_DepthToLastZone;  // last zone registered at this puDepth
+    std::unordered_map<GLuint, IAGPQueryZonePtr> m_DepthToLastZone;  // last zone registered at this depth
     std::set<GLuint> m_PendingUpdate;                                // some queries msut but retrieveds
+
+public:
+    static IAGPContextPtr create(GPU_CONTEXT vContext);
 
 public:
     InAppGpuGLContext(GPU_CONTEXT vContext);
@@ -229,8 +256,8 @@ public:
 
 class IN_APP_GPU_PROFILER_API InAppGpuProfiler {
 public:
-    bool puIsActive = false;
-    bool puIsPaused = false;
+    static bool sIsActive;
+    static bool sIsPaused;
 
 private:
     std::unordered_map<intptr_t, IAGPContextPtr> m_Contexts;
@@ -238,15 +265,16 @@ private:
 
 public:
     void Clear();
-    void Init();
-    void Unit();
     void Collect();
-    void DrawFlamGraph();
+    void DrawFlamGraph(const char* vLabel, bool* pOpen, ImGuiWindowFlags vFlags = 0);
     void DrawDetails();
     IAGPContextPtr GetContextPtr(GPU_CONTEXT vContext);
     InAppGpuGraphTypeEnum& GetGraphTypeRef() {
         return m_GraphType;
     }
+
+private:
+    bool beginWindow(const char* vLabel, bool* pOpen, ImGuiWindowFlags vFlags);
 
 public:
     static InAppGpuProfiler* Instance() {
