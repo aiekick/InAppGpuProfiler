@@ -95,6 +95,12 @@ AIGPScoped("render_imgui", "ImGui");
 }     
 ```
 
+you can also use the variadic form :
+
+```cpp
+AIGPScoped("Opengl", "glGenerateMipmap %u", m_TexId);
+```
+
 these functions must be included in a scope.
 
 you cant put two function in the same scope since the first metric measure 
