@@ -23,5 +23,5 @@ jobs:
     - name: upload artifact
       uses: actions/upload-artifact@v3
       with:
-        name: DemoApp
-        path: build/DemoApp
+        name: DemoApp_Linux
+        path: bin/DemoApp_Linux

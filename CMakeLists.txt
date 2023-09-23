@@ -1,13 +1,15 @@
 cmake_minimum_required(VERSION 3.5)
 
-set(PROJECT Demo)
+set(PROJECT DemoApp)
 
 enable_language(C CXX)
 project(${PROJECT} CXX)
 
 option(USE_NEW_IMGUI_KEY_SYSTEM "Define the symbol IMGUI_DISABLE_OBSOLETE_KEYIO" ON)
 
-set(CMAKE_CXX_STANDARD 11)  
+set(CMAKE_CXX_STANDARD 11) 
+set(CMAKE_CXX_EXTENSIONS OFF) 
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 include(cmake/3rdparty.cmake)
 
@@ -69,16 +71,15 @@ add_executable(${PROJECT}
 
 if(WIN32)
 	set_target_properties(${PROJECT} PROPERTIES OUTPUT_NAME "${PROJECT}_Win32")
-elseif(UNIX)
-	set_target_properties(${PROJECT} PROPERTIES OUTPUT_NAME "${PROJECT}_Unix")
+elseif(APPLE)
+	set_target_properties(${PROJECT} PROPERTIES OUTPUT_NAME "${PROJECT}_Osx")
+else()
+	set_target_properties(${PROJECT} PROPERTIES OUTPUT_NAME "${PROJECT}_Linux")
 endif()
 
 set_target_properties(${PROJECT} PROPERTIES CXX_STANDARD 11)
 set_target_properties(InAppGpuProfiler PROPERTIES CXX_STANDARD 11)
 	
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_CXX_EXTENSIONS OFF)
-
 set(CMAKE_INSTALL_PREFIX "${CMAKE_SOURCE_DIR}")
 install(TARGETS ${PROJECT} DESTINATION ${CMAKE_INSTALL_PREFIX})
 

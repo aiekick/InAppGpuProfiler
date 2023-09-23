@@ -23,5 +23,5 @@ jobs:
     - name: upload artifact
       uses: actions/upload-artifact@v3
       with:
-        name: DemoApp.app
-        path: build/DemoApp.app
+        name: DemoApp_Osx
+        path: bin/DemoApp_Osx
