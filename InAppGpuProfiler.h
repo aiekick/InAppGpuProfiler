@@ -31,6 +31,7 @@ SOFTWARE.
 #include <vector>
 #include <string>
 #include <imgui.h>
+#include <functional>
 #include <unordered_map>
 
 #ifndef IMGUI_DEFINE_MATH_OPERATORS
