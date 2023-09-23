@@ -116,7 +116,7 @@ void checkGLErrors(const char* vFile, const char* vFunc, const int& vLine) {
             case GL_STACK_OVERFLOW: error = "GL_STACK_OVERFLOW"; break;
         }
         printf("[%s][%s][%i] GL Errors : %s\n", vFile, vFunc, vLine, error.c_str());
-        DEBUG_BREAK;
+        //DEBUG_BREAK;
     }
 #endif
 }
@@ -745,7 +745,7 @@ IAGPQueryZonePtr InAppGpuGLContext::GetQueryZoneForName(const std::string& vName
             res = m_RootZone;
         }
     } else {  // else child zone
-        auto root = GetQueryZoneFromDepth(InAppGpuScopedZone::sCurrentDepth - 1U);
+        auto root = m_GetQueryZoneFromDepth(InAppGpuScopedZone::sCurrentDepth - 1U);
         if (root != nullptr) {
             if (root->zonesDico.find(vName) == root->zonesDico.end()) {  // not found
                 res = InAppGpuQueryZone::create(m_Context, vName, vSection, vIsRoot);
@@ -777,7 +777,7 @@ IAGPQueryZonePtr InAppGpuGLContext::GetQueryZoneForName(const std::string& vName
     /////////////////////////////////////////////
 
     if (res != nullptr) {
-        SetQueryZoneForDepth(res, InAppGpuScopedZone::sCurrentDepth);
+        m_SetQueryZoneForDepth(res, InAppGpuScopedZone::sCurrentDepth);
 
         if (res->name != vName) {
             // at depth 0 there is only one frame
@@ -794,11 +794,11 @@ IAGPQueryZonePtr InAppGpuGLContext::GetQueryZoneForName(const std::string& vName
     return res;
 }
 
-void InAppGpuGLContext::SetQueryZoneForDepth(IAGPQueryZonePtr vInAppGpuQueryZone, GLuint vDepth) {
+void InAppGpuGLContext::m_SetQueryZoneForDepth(IAGPQueryZonePtr vInAppGpuQueryZone, GLuint vDepth) {
     m_DepthToLastZone[vDepth] = vInAppGpuQueryZone;
 }
 
-IAGPQueryZonePtr InAppGpuGLContext::GetQueryZoneFromDepth(GLuint vDepth) {
+IAGPQueryZonePtr InAppGpuGLContext::m_GetQueryZoneFromDepth(GLuint vDepth) {
     IAGPQueryZonePtr res = nullptr;
 
     if (m_DepthToLastZone.find(vDepth) != m_DepthToLastZone.end()) {  // found
@@ -845,67 +845,84 @@ void InAppGpuProfiler::Collect() {
 }
 
 void InAppGpuProfiler::DrawFlamGraph(const char* vLabel, bool* pOpen, ImGuiWindowFlags vFlags) {
-    if (beginWindow(vLabel, pOpen, vFlags | ImGuiWindowFlags_MenuBar)) {
-        if (sIsActive) {
-            for (const auto& con : m_Contexts) {
-                if (con.second != nullptr) {
-                    con.second->DrawFlamGraph(m_GraphType);
-                }
+    if (m_ImGuiBeginFunctor != nullptr && m_ImGuiBeginFunctor(vLabel, pOpen, vFlags | ImGuiWindowFlags_MenuBar)) {
+        DrawFlamGraphNoWin();
+    }
+    if (m_ImGuiEndFunctor != nullptr) {
+        m_ImGuiEndFunctor();
+    }
+
+    DrawFlamGraphChilds(vFlags);
+}
+
+void InAppGpuProfiler::DrawFlamGraphNoWin() {
+    if (sIsActive) {
+        m_DrawMenuBar();
+        for (const auto& con : m_Contexts) {
+            if (con.second != nullptr) {
+                con.second->DrawFlamGraph(m_GraphType);
             }
         }
     }
-    ImGui::End();
+}
 
-    IAGPQueryZoneWeak selectedQuery;
-    int32_t query_zone_to_close = -1;
+void InAppGpuProfiler::DrawFlamGraphChilds(ImGuiWindowFlags vFlags) {
+    m_SelectedQuery.reset();
+    m_QueryZoneToClose = -1;
     for (size_t idx = 0U; idx < iagp::InAppGpuQueryZone::sTabbedQueryZones.size(); ++idx) {
         auto ptr = iagp::InAppGpuQueryZone::sTabbedQueryZones[idx].lock();
         if (ptr != nullptr) {
             bool opened = true;
             ImGui::SetNextWindowSizeConstraints(SUB_AIGP_WINDOW_MIN_SIZE, ImGui::GetIO().DisplaySize);
-            if (ImGui::Begin(ptr->imGuiTitle.c_str(), &opened, vFlags)) {
+            if (m_ImGuiBeginFunctor != nullptr && m_ImGuiBeginFunctor(ptr->imGuiTitle.c_str(), &opened, vFlags)) {
                 if (sIsActive) {
-                    ptr->DrawFlamGraph(iagp::InAppGpuProfiler::Instance()->GetGraphTypeRef(), selectedQuery);
+                    ptr->DrawFlamGraph(iagp::InAppGpuProfiler::Instance()->GetGraphTypeRef(), m_SelectedQuery);
                 }
             }
-            ImGui::End();
+            if (m_ImGuiEndFunctor != nullptr) {
+                m_ImGuiEndFunctor();
+            }
             if (!opened) {
-                query_zone_to_close = (int32_t)idx;
+                m_QueryZoneToClose = (int32_t)idx;
             }
         }
     }
-    if (query_zone_to_close > -1) {
+    if (m_QueryZoneToClose > -1) {
         iagp::InAppGpuQueryZone::sTabbedQueryZones.erase(  //
-            iagp::InAppGpuQueryZone::sTabbedQueryZones.begin() + query_zone_to_close);
+            iagp::InAppGpuQueryZone::sTabbedQueryZones.begin() + m_QueryZoneToClose);
     }
 }
 
-bool InAppGpuProfiler::beginWindow(const char* vLabel, bool* pOpen, ImGuiWindowFlags vFlags) {
-    if (ImGui::Begin(vLabel, pOpen, vFlags | ImGuiWindowFlags_MenuBar)) {
-        if (ImGui::BeginMenuBar()) {
-            if (InAppGpuScopedZone::sMaxDepth) {
-                InAppGpuQueryZone::sMaxDepthToOpen = InAppGpuScopedZone::sMaxDepth;
-            }
+void InAppGpuProfiler::SetImGuiBeginFunctor(const ImGuiBeginFunctor& vImGuiBeginFunctor) {
+    m_ImGuiBeginFunctor = vImGuiBeginFunctor;
+}
 
-            IMGUI_PLAY_PAUSE_BUTTON(sIsPaused);
+void InAppGpuProfiler::SetImGuiEndFunctor(const ImGuiEndFunctor& vImGuiEndFunctor) {
+    m_ImGuiEndFunctor = vImGuiEndFunctor;
+}
 
-            ImGui::Checkbox("Logging", &InAppGpuQueryZone::sActivateLogger);
-
-            if (ImGui::BeginMenu("Graph Types")) {
-                if (ImGui::MenuItem("Horizontal", nullptr, m_GraphType == iagp::InAppGpuGraphTypeEnum::IN_APP_GPU_HORIZONTAL)) {
-                    m_GraphType = iagp::InAppGpuGraphTypeEnum::IN_APP_GPU_HORIZONTAL;
-                }
-                if (ImGui::MenuItem("Circular", nullptr, m_GraphType == iagp::InAppGpuGraphTypeEnum::IN_APP_GPU_CIRCULAR)) {
-                    m_GraphType = iagp::InAppGpuGraphTypeEnum::IN_APP_GPU_CIRCULAR;
-                }
-                ImGui::EndMenu();
-            }
-
-            ImGui::EndMenuBar();
+void InAppGpuProfiler::m_DrawMenuBar() {
+    if (ImGui::BeginMenuBar()) {
+        if (InAppGpuScopedZone::sMaxDepth) {
+            InAppGpuQueryZone::sMaxDepthToOpen = InAppGpuScopedZone::sMaxDepth;
         }
-        return true;
+
+        IMGUI_PLAY_PAUSE_BUTTON(sIsPaused);
+
+        //ImGui::Checkbox("Logging", &InAppGpuQueryZone::sActivateLogger);
+
+        /*if (ImGui::BeginMenu("Graph Types")) {
+            if (ImGui::MenuItem("Horizontal", nullptr, m_GraphType == iagp::InAppGpuGraphTypeEnum::IN_APP_GPU_HORIZONTAL)) {
+                m_GraphType = iagp::InAppGpuGraphTypeEnum::IN_APP_GPU_HORIZONTAL;
+            }
+            if (ImGui::MenuItem("Circular", nullptr, m_GraphType == iagp::InAppGpuGraphTypeEnum::IN_APP_GPU_CIRCULAR)) {
+                m_GraphType = iagp::InAppGpuGraphTypeEnum::IN_APP_GPU_CIRCULAR;
+            }
+            ImGui::EndMenu();
+        }*/
+
+        ImGui::EndMenuBar();
     }
-    return false;
 }
 
 void InAppGpuProfiler::DrawDetails() {

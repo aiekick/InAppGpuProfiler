@@ -237,8 +237,8 @@ public:
     IAGPQueryZonePtr GetQueryZoneForName(const std::string& vName, const std::string& vSection = "", const bool& vIsRoot = false);
 
 private:
-    void SetQueryZoneForDepth(IAGPQueryZonePtr vQueryZone, GLuint vDepth);
-    IAGPQueryZonePtr GetQueryZoneFromDepth(GLuint vDepth);
+    void m_SetQueryZoneForDepth(IAGPQueryZonePtr vQueryZone, GLuint vDepth);
+    IAGPQueryZonePtr m_GetQueryZoneFromDepth(GLuint vDepth);
 };
 
 class IN_APP_GPU_PROFILER_API InAppGpuScopedZone {
@@ -256,17 +256,32 @@ public:
 
 class IN_APP_GPU_PROFILER_API InAppGpuProfiler {
 public:
+    typedef std::function<bool(const char*, bool*, ImGuiWindowFlags)> ImGuiBeginFunctor;
+    typedef std::function<void()> ImGuiEndFunctor;
+
+public:
     static bool sIsActive;
     static bool sIsPaused;
 
 private:
     std::unordered_map<intptr_t, IAGPContextPtr> m_Contexts;
     InAppGpuGraphTypeEnum m_GraphType = InAppGpuGraphTypeEnum::IN_APP_GPU_HORIZONTAL;
+    IAGPQueryZoneWeak m_SelectedQuery;
+    int32_t m_QueryZoneToClose = -1;
+    ImGuiBeginFunctor m_ImGuiBeginFunctor =                                     //
+        [](const char* vLabel, bool* pOpen, ImGuiWindowFlags vFlags) -> bool {  //
+        return ImGui::Begin(vLabel, pOpen, vFlags);
+    };
+    ImGuiEndFunctor m_ImGuiEndFunctor = []() { ImGui::End(); };
 
 public:
     void Clear();
     void Collect();
     void DrawFlamGraph(const char* vLabel, bool* pOpen, ImGuiWindowFlags vFlags = 0);
+    void DrawFlamGraphNoWin();
+    void DrawFlamGraphChilds(ImGuiWindowFlags vFlags = 0);
+    void SetImGuiBeginFunctor(const ImGuiBeginFunctor& vImGuiBeginFunctor);
+    void SetImGuiEndFunctor(const ImGuiEndFunctor& vImGuiEndFunctor);
     void DrawDetails();
     IAGPContextPtr GetContextPtr(GPU_CONTEXT vContext);
     InAppGpuGraphTypeEnum& GetGraphTypeRef() {
@@ -274,7 +289,7 @@ public:
     }
 
 private:
-    bool beginWindow(const char* vLabel, bool* pOpen, ImGuiWindowFlags vFlags);
+    void m_DrawMenuBar();
 
 public:
     static InAppGpuProfiler* Instance() {
