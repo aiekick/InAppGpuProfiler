@@ -127,7 +127,7 @@ public:
         return (glIsTexture(m_TexId) == GL_TRUE);
     }
 
-    const GLuint& getTexId() {
+    GLuint getTexId() {
         return m_TexId;
     }
 };

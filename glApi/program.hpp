@@ -217,6 +217,8 @@ public:
                 switch (shader_type.first) {
                     case GL_VERTEX_SHADER: ImGui::Text("%s", "Stage Vertex"); break;
                     case GL_FRAGMENT_SHADER: ImGui::Text("%s", "Stage Fragment"); break;
+                    case GL_TESS_EVALUATION_SHADER: ImGui::Text("%s", "Stage Tesselation Evaluation"); break;
+                    case GL_TESS_CONTROL_SHADER: ImGui::Text("%s", "Stage Tesselation Control"); break;
                 }
                 ImGui::Indent();
                 for (auto& uni : shader_type.second) {
@@ -255,6 +257,8 @@ public:
             switch (shader_type.first) {
                 case GL_VERTEX_SHADER: stage_name = "VERTEX"; break;
                 case GL_FRAGMENT_SHADER: stage_name = "FRAGMENT"; break;
+                case GL_TESS_EVALUATION_SHADER: stage_name = "TESSEVAL"; break;
+                case GL_TESS_CONTROL_SHADER: stage_name = "TESSCTRL"; break;
             }
             for (auto& uni : shader_type.second) {
                 uni.second.loc = glGetUniformLocation(m_ProgramId, uni.second.name.c_str());

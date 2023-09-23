@@ -59,6 +59,7 @@ void checkGLErrors(const char* vFile, const char* vFunc, const int& vLine) {
 #include "texture.hpp"
 #include "fbo.hpp"
 #include "mesh.hpp"
+#include "quadMesh.hpp"
 #include "shader.hpp"
 #include "program.hpp"
 #include "quadVfx.hpp"

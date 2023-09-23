@@ -28,19 +28,21 @@ file(GLOB MAIN_SOURCES
 	${CMAKE_SOURCE_DIR}/*.cpp
 	${CMAKE_SOURCE_DIR}/*.h
 	${CMAKE_SOURCE_DIR}/*.hpp)
+source_group(main FILES ${MAIN_SOURCES})
+
 file(GLOB IMGUIIMPL_SOURCES 
 		${CMAKE_SOURCE_DIR}/3rdparty/imgui/backends/imgui_impl_glfw.cpp
 		${CMAKE_SOURCE_DIR}/3rdparty/imgui/backends/imgui_impl_glfw.h
 		${CMAKE_SOURCE_DIR}/3rdparty/imgui/backends/imgui_impl_opengl3.cpp
 		${CMAKE_SOURCE_DIR}/3rdparty/imgui/backends/imgui_impl_opengl3.h)
-file(GLOB SHADERS_SOURCES 
-		${CMAKE_SOURCE_DIR}/bin/shaders/*.vert
-		${CMAKE_SOURCE_DIR}/bin/shaders/*.frag)
+source_group(ImGuiImpl FILES ${IMGUIIMPL_SOURCES})
+
+file(GLOB_RECURSE ASSETS_SOURCES 
+		${CMAKE_SOURCE_DIR}/bin/assets/*.*)
+source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR}/bin/assets PREFIX assets FILES ${ASSETS_SOURCES})
+
 file(GLOB GL_API_SOURCES 
 		${CMAKE_SOURCE_DIR}/glAPi/*.*)
-source_group(main FILES ${MAIN_SOURCES})
-source_group(ImGuiImpl FILES ${IMGUIIMPL_SOURCES})
-source_group(Shaders FILES ${SHADERS_SOURCES})
 source_group(glApi FILES ${GL_API_SOURCES})
 
 include_directories(
@@ -59,7 +61,7 @@ add_executable(${PROJECT}
 	${MAIN_SOURCES}
 	${CUSTOM_SOURCES}
 	${GL_API_SOURCES}
-	${SHADERS_SOURCES}
+	${ASSETS_SOURCES}
 	${IMGUIIMPL_SOURCES}
 )
 

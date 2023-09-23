@@ -34,6 +34,7 @@ SOFTWARE.
 #include "glApi.hpp"
 #include <imgui.h>
 
+#include <array>
 #include <memory>
 #include <cassert>
 #include <functional>
@@ -149,7 +150,7 @@ public:
         const GLenum& vShaderType,        //
         const std::string& vUniformName,  //
         float* vUniformPtr,               //
-        const size_t& vCountChannels,     //
+        const GLuint& vCountChannels,     //
         const bool& vShowWidget,          //
         const Program::UniformWidgetFunctor& vWidgetFunctor) {
         assert(m_ProgramPtr != nullptr);
@@ -159,7 +160,7 @@ public:
         const GLenum& vShaderType,        //
         const std::string& vUniformName,  //
         int32_t* vUniformPtr,             //
-        const size_t& vCountChannels,     //
+        const GLuint& vCountChannels,     //
         const bool& vShowWidget,          //
         const Program::UniformWidgetFunctor& vWidgetFunctor) {
         assert(m_ProgramPtr != nullptr);
@@ -177,7 +178,7 @@ public:
         assert(m_ProgramPtr != nullptr);
         m_ProgramPtr->locateUniforms();
     }
-    bool resize(const float& vSx, const float vSy) {
+    bool resize(const GLsizei& vSx, const GLsizei vSy) {
         assert(m_FBOPipeLinePtr != nullptr);
         if (m_FBOPipeLinePtr->resize(vSx, vSy)) {
             m_Size[0] = vSx;
@@ -210,19 +211,20 @@ public:
                         glViewport(0, 0, m_Size[0], m_Size[1]);
                     }
                     quad_ptr->render(GL_TRIANGLES);
-                    m_FBOPipeLinePtr->updateMipMaping();
                     m_ProgramPtr->unuse();
                 }
+                m_FBOPipeLinePtr->updateMipMaping();
                 m_FBOPipeLinePtr->unbind();
             }
         }
     }
-    const GLuint& getTextureId() {
+    GLuint getTextureId() {
         assert(m_FBOPipeLinePtr != nullptr);
         auto front_fbo_ptr = m_FBOPipeLinePtr->getFrontFBO().lock();
         if (front_fbo_ptr != nullptr) {
             return front_fbo_ptr->getTextureId();
         }    
+        return 0U;
     }
     void drawImGuiThumbnail(const float& vSx, const float& vSy, const float& vScaleInv) {
         assert(m_FBOPipeLinePtr != nullptr);
@@ -230,8 +232,7 @@ public:
         if (front_fbo_ptr != nullptr) {
             const auto texId = front_fbo_ptr->getTextureId();
             if (texId > 0U) {
-                ImGui::ImageButton(m_Name.c_str(), (ImTextureID)texId, ImVec2(vSx, vSy), ImVec2(0, vScaleInv), ImVec2(vScaleInv, 0));
-                //ImGui::Image((ImTextureID)texId, ImVec2(vSx, vSy), ImVec2(0, vScaleInv), ImVec2(vScaleInv, 0));
+                ImGui::ImageButton(m_Name.c_str(), (ImTextureID)(size_t)texId, ImVec2(vSx, vSy), ImVec2(0, vScaleInv), ImVec2(vScaleInv, 0));
             }
         }
     }

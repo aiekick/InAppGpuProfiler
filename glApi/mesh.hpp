@@ -182,39 +182,4 @@ public:
     }
 };
 
-struct QuadDatas {
-    float p[2] = {};
-    float t[2] = {};
-    QuadDatas(const float& px, const float& py, const float& tx, const float& ty) : p{px, py}, t{tx, ty} {};
-};
-
-class QuadMesh;
-typedef std::shared_ptr<QuadMesh> QuadMeshPtr;
-typedef std::weak_ptr<QuadMesh> QuadMeshWeak;
-
-class QuadMesh : public Mesh<QuadDatas> {
-public:
-    static QuadMeshPtr create() {
-        auto res = std::make_shared<QuadMesh>();
-        res->m_This = res;
-
-        std::vector<QuadDatas> vertices = {
-            QuadDatas(-1.0f, -1.0f, 0.0f, 0.0f),
-            QuadDatas(1.0f, -1.0f, 1.0f, 0.0f),
-            QuadDatas(1.0f, 1.0f, 1.0f, 1.0f),
-            QuadDatas(-1.0f, 1.0f, 0.0f, 1.0f),
-        };
-
-        std::vector<uint32_t> indices = {0, 1, 2, 0, 2, 3};
-
-        if (!res->init(vertices, indices, {2, 2})) {
-            res.reset();
-        }
-        return res;
-    }
-
-private:
-    QuadMeshWeak m_This;
-};
-
 }  // namespace glApi

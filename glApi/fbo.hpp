@@ -134,7 +134,7 @@ public:
         CheckGLErrors;
     }
 
-    const GLuint& getTextureId(const size_t& vBufferIdx = 0U) {
+    GLuint getTextureId(const size_t& vBufferIdx = 0U) {
         if (m_Textures.size() > vBufferIdx) {
             return m_Textures[vBufferIdx]->getTexId();
         }
