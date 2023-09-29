@@ -31,7 +31,6 @@ SOFTWARE.
 #include <vector>
 #include <string>
 #include <imgui.h>
-#include <functional>
 #include <unordered_map>
 
 #ifndef IMGUI_DEFINE_MATH_OPERATORS
@@ -274,6 +273,7 @@ private:
         return ImGui::Begin(vLabel, pOpen, vFlags);
     };
     ImGuiEndFunctor m_ImGuiEndFunctor = []() { ImGui::End(); };
+    bool m_ShowDetails = false;
 
 public:
     void Clear();
@@ -283,7 +283,8 @@ public:
     void DrawFlamGraphChilds(ImGuiWindowFlags vFlags = 0);
     void SetImGuiBeginFunctor(const ImGuiBeginFunctor& vImGuiBeginFunctor);
     void SetImGuiEndFunctor(const ImGuiEndFunctor& vImGuiEndFunctor);
-    void DrawDetails();
+    void DrawDetails(ImGuiWindowFlags vFlags = 0);
+    void DrawDetailsNoWin();
     IAGPContextPtr GetContextPtr(GPU_CONTEXT vContext);
     InAppGpuGraphTypeEnum& GetGraphTypeRef() {
         return m_GraphType;

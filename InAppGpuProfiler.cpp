@@ -99,6 +99,10 @@ static bool PlayPauseButton(bool& vPlayPause) {
 #define IMGUI_PLAY_PAUSE_BUTTON PlayPauseButton
 #endif  // LOG_DEBUG_ERROR_MESSAGE
 
+#ifndef AIGP_DETAILS_TITLE
+#define AIGP_DETAILS_TITLE "Profiler Details"
+#endif // AIGP_DETAILS_TITLE
+
 namespace iagp {
 
 void checkGLErrors(const char* vFile, const char* vFunc, const int& vLine) {
@@ -853,6 +857,8 @@ void InAppGpuProfiler::DrawFlamGraph(const char* vLabel, bool* pOpen, ImGuiWindo
     }
 
     DrawFlamGraphChilds(vFlags);
+
+    DrawDetails(vFlags);
 }
 
 void InAppGpuProfiler::DrawFlamGraphNoWin() {
@@ -909,6 +915,10 @@ void InAppGpuProfiler::m_DrawMenuBar() {
 
         IMGUI_PLAY_PAUSE_BUTTON(sIsPaused);
 
+        if (IMGUI_BUTTON("Details")) {
+            m_ShowDetails = !m_ShowDetails;
+        }
+
         //ImGui::Checkbox("Logging", &InAppGpuQueryZone::sActivateLogger);
 
         /*if (ImGui::BeginMenu("Graph Types")) {
@@ -925,7 +935,18 @@ void InAppGpuProfiler::m_DrawMenuBar() {
     }
 }
 
-void InAppGpuProfiler::DrawDetails() {
+void InAppGpuProfiler::DrawDetails(ImGuiWindowFlags vFlags) {
+    if (m_ShowDetails) {
+        if (m_ImGuiBeginFunctor != nullptr && m_ImGuiBeginFunctor(AIGP_DETAILS_TITLE, &m_ShowDetails, vFlags)) {
+            DrawDetailsNoWin();
+        }
+        if (m_ImGuiEndFunctor != nullptr) {
+            m_ImGuiEndFunctor();
+        }
+    }
+}
+
+void InAppGpuProfiler::DrawDetailsNoWin() {
     if (!sIsActive) {
         return;
     }

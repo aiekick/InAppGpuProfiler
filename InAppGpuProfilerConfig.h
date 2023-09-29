@@ -25,6 +25,9 @@
 // OPTIONNAL ///////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////
 
+// the title of the profiler detail imgui windows
+//#define AIGP_DETAILS_TITLE "Profiler Details"
+
 // the max level of recursion for profiler queries
 //#define RECURSIVE_LEVELS_COUNT 20U
 
