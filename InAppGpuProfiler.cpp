@@ -320,10 +320,12 @@ bool InAppGpuQueryZone::DrawFlamGraph(InAppGpuGraphTypeEnum vGraphType, IAGPQuer
 
     bool pressed = false;
     switch (vGraphType) {
-        case InAppGpuGraphTypeEnum::IN_APP_GPU_HORIZONTAL:
+        case InAppGpuGraphTypeEnum::IN_APP_GPU_HORIZONTAL:  //
             pressed = m_DrawHorizontalFlameGraph(m_This.lock(), vOutSelectedQuery, vParent, vDepth);
             break;
-        case InAppGpuGraphTypeEnum::IN_APP_GPU_CIRCULAR: pressed = m_DrawCircularFlameGraph(m_This.lock(), vOutSelectedQuery, vParent, vDepth); break;
+        case InAppGpuGraphTypeEnum::IN_APP_GPU_CIRCULAR:  //
+            pressed = m_DrawCircularFlameGraph(m_This.lock(), vOutSelectedQuery, vParent, vDepth);
+            break;
     }
     return pressed;
 }
