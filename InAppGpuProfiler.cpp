@@ -382,9 +382,11 @@ void InAppGpuQueryZone::DrawBreadCrumbTrail(IAGPQueryZoneWeak& vOutSelectedQuery
                     ImGui::Text("%s", ">");
                     ImGui::SameLine();
                 }
+                ImGui::PushID(ptr.get());
                 if (IAGP_IMGUI_BUTTON(ptr->imGuiLabel.c_str())) {
                     vOutSelectedQuery = m_BreadCrumbTrail[idx];
                 }
+                ImGui::PopID();
             }
         } else {
             DEBUG_BREAK;
@@ -414,7 +416,11 @@ bool InAppGpuQueryZone::m_ComputeRatios(IAGPQueryZonePtr vRoot, IAGPQueryZoneWea
         if (vDepth == 0) {
             vOutStartRatio = 0.0f;
             vOutSizeRatio = 1.0f;
-            hsv = ImVec4((float)(0.5 - m_ElapsedTime * 0.5 / vRoot->m_ElapsedTime), 0.5f, 1.0f, 1.0f);
+            if (rootPtr == nullptr) {
+                hsv = ImVec4((float)(0.5 - 0.5 * m_ElapsedTime / vRoot->m_ElapsedTime), 0.5f, 1.0f, 1.0f);
+            } else {
+                hsv = ImVec4((float)(0.5 - 0.5 * m_ElapsedTime / rootPtr->m_ElapsedTime), 0.5f, 1.0f, 1.0f);
+            }
         } else {
             auto parent_ptr = vParent.lock();
             if (parent_ptr) {
@@ -442,7 +448,11 @@ bool InAppGpuQueryZone::m_ComputeRatios(IAGPQueryZonePtr vRoot, IAGPQueryZoneWea
 
                     vOutStartRatio = (float)((m_StartTime - vRoot->m_StartTime) / vRoot->m_ElapsedTime);
                     vOutSizeRatio = (float)(m_ElapsedTime / vRoot->m_ElapsedTime);
-                    hsv = ImVec4((float)(0.5 - 0.5 * vOutSizeRatio), 0.5f, 1.0f, 1.0f);
+                    if (rootPtr == nullptr) {
+                        hsv = ImVec4((float)(0.5 - 0.5 * m_ElapsedTime / vRoot->m_ElapsedTime), 0.5f, 1.0f, 1.0f);
+                    } else {
+                        hsv = ImVec4((float)(0.5 - 0.5 * m_ElapsedTime / rootPtr->m_ElapsedTime), 0.5f, 1.0f, 1.0f);
+                    }
                 }
             }
         }
