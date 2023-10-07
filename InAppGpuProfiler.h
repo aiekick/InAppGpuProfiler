@@ -35,17 +35,17 @@ SOFTWARE.
 
 #ifndef IMGUI_DEFINE_MATH_OPERATORS
 #define IMGUI_DEFINE_MATH_OPERATORS
-#endif  // IMGUI_DEFINE_MATH_OPERATORS
+#endif // IMGUI_DEFINE_MATH_OPERATORS
 
 #ifndef CUSTOM_IN_APP_GPU_PROFILER_CONFIG
 #include "InAppGpuProfilerConfig.h"
-#else  // CUSTOM_IN_APP_GPU_PROFILER_CONFIG
+#else // CUSTOM_IN_APP_GPU_PROFILER_CONFIG
 #include CUSTOM_IN_APP_GPU_PROFILER_CONFIG
-#endif  // CUSTOM_IN_APP_GPU_PROFILER_CONFIG
+#endif // CUSTOM_IN_APP_GPU_PROFILER_CONFIG
 
 #ifndef IN_APP_GPU_PROFILER_API
 #define IN_APP_GPU_PROFILER_API
-#endif  // IN_APP_GPU_PROFILER_API
+#endif // IN_APP_GPU_PROFILER_API
 
 // a main zone for the frame must always been defined for the frame
 #define AIGPNewFrame(section, fmt, ...)                                                        \
@@ -58,16 +58,16 @@ SOFTWARE.
 
 #define AIGPCollect iagp::InAppGpuProfiler::Instance()->Collect()
 
-#ifndef RECURSIVE_LEVELS_COUNT
-#define RECURSIVE_LEVELS_COUNT 20U
+#ifndef IAGP_RECURSIVE_LEVELS_COUNT
+#define IAGP_RECURSIVE_LEVELS_COUNT 20U
 #endif  // RECURSIVE_LEVELS_COUNT
 
-#ifndef MEAN_AVERAGE_LEVELS_COUNT
-#define MEAN_AVERAGE_LEVELS_COUNT 60U
+#ifndef IAGP_MEAN_AVERAGE_LEVELS_COUNT
+#define IAGP_MEAN_AVERAGE_LEVELS_COUNT 60U
 #endif  // MEAN_AVERAGE_LEVELS_COUNT
 
-#ifndef GPU_CONTEXT
-#define GPU_CONTEXT void*
+#ifndef IAGP_GPU_CONTEXT
+#define IAGP_GPU_CONTEXT void*
 #endif // GPU_CONTEXT
 
 namespace iagp {
@@ -89,7 +89,7 @@ enum InAppGpuGraphTypeEnum {
 template <typename T>
 class InAppGpuAverageValue {
 private:
-    static constexpr uint32_t sCountAverageValues = MEAN_AVERAGE_LEVELS_COUNT;
+    static constexpr uint32_t sCountAverageValues = IAGP_MEAN_AVERAGE_LEVELS_COUNT;
     T m_PerFrame[sCountAverageValues] = {};
     int m_PerFrameIdx = (T)0;
     T m_PerFrameAccum = (T)0;
@@ -147,7 +147,7 @@ public:
     static float sContrastRatio;
     static bool sActivateLogger;
     static std::vector<IAGPQueryZoneWeak> sTabbedQueryZones;
-    static IAGPQueryZonePtr create(GPU_CONTEXT vContext, const std::string& vName, const std::string& vSectionName, const bool& vIsRoot = false);
+    static IAGPQueryZonePtr create(IAGP_GPU_CONTEXT vContext, const std::string& vName, const std::string& vSectionName, const bool& vIsRoot = false);
     static circularSettings sCircularSettings;
 
 public:
@@ -175,7 +175,7 @@ private:
     bool m_Highlighted = false;
     InAppGpuAverageValue<GLuint64> m_AverageStartValue;
     InAppGpuAverageValue<GLuint64> m_AverageEndValue;
-    GPU_CONTEXT m_Context;
+    IAGP_GPU_CONTEXT m_Context;
     std::string m_BarLabel;
     std::string m_SectionName;
     ImVec4 cv4;
@@ -183,7 +183,7 @@ private:
     InAppGpuGraphTypeEnum m_GraphType = InAppGpuGraphTypeEnum::IN_APP_GPU_HORIZONTAL;
 
     // fil d'ariane
-    std::array<IAGPQueryZoneWeak, RECURSIVE_LEVELS_COUNT> m_BreadCrumbTrail; // the parent cound is done by current depth
+    std::array<IAGPQueryZoneWeak, IAGP_RECURSIVE_LEVELS_COUNT> m_BreadCrumbTrail;  // the parent cound is done by current depth
 
     // circular
     const float _1PI_ = 3.141592653589793238462643383279f;
@@ -193,7 +193,7 @@ private:
 
 public:
     InAppGpuQueryZone() = default;
-    InAppGpuQueryZone(GPU_CONTEXT vContext, const std::string& vName, const std::string& vSectionName, const bool& vIsRoot = false);
+    InAppGpuQueryZone(IAGP_GPU_CONTEXT vContext, const std::string& vName, const std::string& vSectionName, const bool& vIsRoot = false);
     ~InAppGpuQueryZone();
     void Clear();
     void SetStartTimeStamp(const GLuint64& vValue);
@@ -216,7 +216,7 @@ private:
 class IN_APP_GPU_PROFILER_API InAppGpuGLContext {
 private:
     IAGPContextWeak m_This;
-    GPU_CONTEXT m_Context;
+    IAGP_GPU_CONTEXT m_Context;
     IAGPQueryZonePtr m_RootZone = nullptr;
     IAGPQueryZoneWeak m_SelectedQuery; // query to show the flamegraph in this context
     std::unordered_map<GLuint, IAGPQueryZonePtr> m_QueryIDToZone;    // Get the zone for a query id because a query have to id's : start and end
@@ -224,10 +224,10 @@ private:
     std::set<GLuint> m_PendingUpdate;                                // some queries msut but retrieveds
 
 public:
-    static IAGPContextPtr create(GPU_CONTEXT vContext);
+    static IAGPContextPtr create(IAGP_GPU_CONTEXT vContext);
 
 public:
-    InAppGpuGLContext(GPU_CONTEXT vContext);
+    InAppGpuGLContext(IAGP_GPU_CONTEXT vContext);
     void Clear();
     void Init();
     void Unit();
@@ -285,7 +285,7 @@ public:
     void SetImGuiEndFunctor(const ImGuiEndFunctor& vImGuiEndFunctor);
     void DrawDetails(ImGuiWindowFlags vFlags = 0);
     void DrawDetailsNoWin();
-    IAGPContextPtr GetContextPtr(GPU_CONTEXT vContext);
+    IAGPContextPtr GetContextPtr(IAGP_GPU_CONTEXT vContext);
     InAppGpuGraphTypeEnum& GetGraphTypeRef() {
         return m_GraphType;
     }

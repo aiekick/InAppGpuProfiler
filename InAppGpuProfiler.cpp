@@ -39,37 +39,37 @@ SOFTWARE.
 #define DEBUG_BREAK
 #endif
 
-#ifndef SUB_AIGP_WINDOW_MIN_SIZE
-#define SUB_AIGP_WINDOW_MIN_SIZE ImVec2(300, 100)
-#endif // SUB_AIGP_WINDOW_MIN_SIZE
+#ifndef IAGP_SUB_WINDOW_MIN_SIZE
+#define IAGP_SUB_WINDOW_MIN_SIZE ImVec2(300, 100)
+#endif // SUB_IAGP_WINDOW_MIN_SIZE
 
-#ifndef GPU_CONTEXT
-#define GPU_CONTEXT void*
+#ifndef IAGP_GPU_CONTEXT
+#define IAGP_GPU_CONTEXT void*
 #endif  // GPU_CONTEXT
 
-#ifndef GET_CURRENT_CONTEXT
-static GPU_CONTEXT GetCurrentContext() {
+#ifndef IAGP_GET_CURRENT_CONTEXT
+static IAGP_GPU_CONTEXT GetCurrentContext() {
     DEBUG_BREAK;  // you need to create your own function for get the opengl context
     return nullptr;
 }
-#define GET_CURRENT_CONTEXT GetCurrentContext
+#define IAGP_GET_CURRENT_CONTEXT GetCurrentContext
 #endif  // GET_CURRENT_CONTEXT
 
-#ifndef SET_CURRENT_CONTEXT
+#ifndef IAGP_SET_CURRENT_CONTEXT
 static void SetCurrentContext(GPU_CONTEXT vContextPtr) {
     DEBUG_BREAK;  // you need to create your own function for get the opengl context
 }
 #define SET_CURRENT_CONTEXT SetCurrentContext
 #endif  // GET_CURRENT_CONTEXT
 
-#ifndef LOG_ERROR_MESSAGE
+#ifndef IAGP_LOG_ERROR_MESSAGE
 static void LogError(const char* fmt, ...) {
     DEBUG_BREAK;  // you need to define your own function for get error messages
 }
 #define LOG_ERROR_MESSAGE LogError
 #endif  // LOG_ERROR_MESSAGE
 
-#ifndef LOG_DEBUG_ERROR_MESSAGE
+#ifndef IAGP_LOG_DEBUG_ERROR_MESSAGE
 static void LogDebugError(const char* fmt, ...) {
     DEBUG_BREAK;  // you need to define your own function for get error messages in debug
 }
@@ -80,7 +80,7 @@ static void LogDebugError(const char* fmt, ...) {
 #define IAGP_IMGUI_BUTTON ImGui ::Button
 #endif  // IMGUI_BUTTON
 
-#ifndef IMGUI_PLAY_PAUSE_BUTTON
+#ifndef IAGP_IMGUI_PLAY_PAUSE_BUTTON
 static bool PlayPauseButton(bool& vPlayPause) {
     bool res = false;
     const char* play_pause_label = "Play";
@@ -96,12 +96,12 @@ static bool PlayPauseButton(bool& vPlayPause) {
     }
     return res;
 }
-#define IMGUI_PLAY_PAUSE_BUTTON PlayPauseButton
+#define IAGP_IMGUI_PLAY_PAUSE_BUTTON PlayPauseButton
 #endif  // LOG_DEBUG_ERROR_MESSAGE
 
-#ifndef AIGP_DETAILS_TITLE
-#define AIGP_DETAILS_TITLE "Profiler Details"
-#endif // AIGP_DETAILS_TITLE
+#ifndef IAGP_DETAILS_TITLE
+#define IAGP_DETAILS_TITLE "Profiler Details"
+#endif // IAGP_DETAILS_TITLE
 
 namespace iagp {
 
@@ -176,14 +176,15 @@ bool InAppGpuQueryZone::sShowLeafMode = false;
 float InAppGpuQueryZone::sContrastRatio = 4.3f;
 bool InAppGpuQueryZone::sActivateLogger = false;
 std::vector<IAGPQueryZoneWeak> InAppGpuQueryZone::sTabbedQueryZones = {};
-IAGPQueryZonePtr InAppGpuQueryZone::create(GPU_CONTEXT vContext, const std::string& vName, const std::string& vSectionName, const bool& vIsRoot) {
+IAGPQueryZonePtr InAppGpuQueryZone::create(IAGP_GPU_CONTEXT vContext, const std::string& vName, const std::string& vSectionName,
+                                           const bool& vIsRoot) {
     auto res = std::make_shared<InAppGpuQueryZone>(vContext, vName, vSectionName, vIsRoot);
     res->m_This = res;
     return res;
 }
 InAppGpuQueryZone::circularSettings InAppGpuQueryZone::sCircularSettings;
 
-InAppGpuQueryZone::InAppGpuQueryZone(GPU_CONTEXT vContext, const std::string& vName, const std::string& vSectionName, const bool& vIsRoot)
+InAppGpuQueryZone::InAppGpuQueryZone(IAGP_GPU_CONTEXT vContext, const std::string& vName, const std::string& vSectionName, const bool& vIsRoot)
     : m_Context(vContext), name(vName), m_IsRoot(vIsRoot), m_SectionName(vSectionName) {
     m_StartFrameId = 0;
     m_EndFrameId = 0;
@@ -193,14 +194,14 @@ InAppGpuQueryZone::InAppGpuQueryZone(GPU_CONTEXT vContext, const std::string& vN
     depth = InAppGpuScopedZone::sCurrentDepth;
     imGuiLabel = vName + "##InAppGpuQueryZone_" + std::to_string((intptr_t)this);
 
-    SET_CURRENT_CONTEXT(m_Context);
+    IAGP_SET_CURRENT_CONTEXT(m_Context);
     CheckGLErrors;
     glGenQueries(2, ids);
     CheckGLErrors;
 }
 
 InAppGpuQueryZone::~InAppGpuQueryZone() {
-    SET_CURRENT_CONTEXT(m_Context);
+    IAGP_SET_CURRENT_CONTEXT(m_Context);
     CheckGLErrors;
     glDeleteQueries(2, ids);
     CheckGLErrors;
@@ -232,8 +233,8 @@ void InAppGpuQueryZone::SetEndTimeStamp(const GLuint64& vValue) {
     m_EndTimeStamp = vValue;
     m_EndFrameId++;
 
-#ifdef DEBUG_MODE_LOGGING
-    DEBUG_MODE_LOGGING("%*s end id retrieved : %u", depth, "", ids[1]);
+#ifdef IAGP_DEBUG_MODE_LOGGING
+    IAGP_DEBUG_MODE_LOGGING("%*s end id retrieved : %u", depth, "", ids[1]);
 #endif
     // start computation of elapsed time
     // no needed after
@@ -522,8 +523,8 @@ bool InAppGpuQueryZone::m_DrawHorizontalFlameGraph(IAGPQueryZonePtr vRoot, IAGPQ
                 }
             }
         } else {
-#ifdef DEBUG_MODE_LOGGING
-            DEBUG_MODE_LOGGING("Bar Ms not displayed", name.c_str());
+#ifdef IAGP_DEBUG_MODE_LOGGING
+            IAGP_DEBUG_MODE_LOGGING("Bar Ms not displayed", name.c_str());
 #endif
         }
     }
@@ -633,13 +634,13 @@ bool InAppGpuQueryZone::m_DrawCircularFlameGraph(IAGPQueryZonePtr vRoot, IAGPQue
 /////////////////////// GL CONTEXT /////////////////////////
 ////////////////////////////////////////////////////////////
 
-IAGPContextPtr InAppGpuGLContext::create(GPU_CONTEXT vContext) {
+IAGPContextPtr InAppGpuGLContext::create(IAGP_GPU_CONTEXT vContext) {
     auto res = std::make_shared<InAppGpuGLContext>(vContext);
     res->m_This = res;
     return res;
 }
 
-InAppGpuGLContext::InAppGpuGLContext(GPU_CONTEXT vContext) : m_Context(vContext) {
+InAppGpuGLContext::InAppGpuGLContext(IAGP_GPU_CONTEXT vContext) : m_Context(vContext) {
 }
 
 void InAppGpuGLContext::Clear() {
@@ -657,8 +658,8 @@ void InAppGpuGLContext::Unit() {
 }
 
 void InAppGpuGLContext::Collect() {
-#ifdef DEBUG_MODE_LOGGING
-    DEBUG_MODE_LOGGING("------ Collect Trhead (%i) -----", (intptr_t)m_Context);
+#ifdef IAGP_DEBUG_MODE_LOGGING
+    IAGP_DEBUG_MODE_LOGGING("------ Collect Trhead (%i) -----", (intptr_t)m_Context);
 #endif
 
     auto it = m_PendingUpdate.begin();
@@ -686,13 +687,13 @@ void InAppGpuGLContext::Collect() {
         } else {
             auto ptr = m_QueryIDToZone[id];
             if (ptr != nullptr) {
-                LOG_ERROR_MESSAGE("%*s id not retrieved : %u", ptr->depth, "", id);
+                IAGP_LOG_ERROR_MESSAGE("%*s id not retrieved : %u", ptr->depth, "", id);
             }
         }
     }
 
-#ifdef DEBUG_MODE_LOGGING
-    DEBUG_MODE_LOGGING("------ End Frame -----");
+#ifdef IAGP_DEBUG_MODE_LOGGING
+    IAGP_DEBUG_MODE_LOGGING("------ End Frame -----");
 #endif
 }
 
@@ -729,8 +730,8 @@ IAGPQueryZonePtr InAppGpuGLContext::GetQueryZoneForName(const std::string& vName
     }
 
     if (InAppGpuScopedZone::sCurrentDepth == 0) {  // root zone
-#ifdef DEBUG_MODE_LOGGING
-        DEBUG_MODE_LOGGING("------ Start Frame -----");
+#ifdef IAGP_DEBUG_MODE_LOGGING
+        IAGP_DEBUG_MODE_LOGGING("------ Start Frame -----");
 #endif
         m_DepthToLastZone.clear();
         if (m_RootZone == nullptr) {
@@ -741,8 +742,8 @@ IAGPQueryZonePtr InAppGpuGLContext::GetQueryZoneForName(const std::string& vName
                 m_QueryIDToZone[res->ids[0]] = res;
                 m_QueryIDToZone[res->ids[1]] = res;
                 m_RootZone = res;
-#ifdef DEBUG_MODE_LOGGING
-                // DEBUG_MODE_LOGGING("Profile : add zone %s at puDepth %u", vName.c_str(), InAppGpuScopedZone::sCurrentDepth);
+#ifdef IAGP_DEBUG_MODE_LOGGING
+                // IAGP_DEBUG_MODE_LOGGING("Profile : add zone %s at puDepth %u", vName.c_str(), InAppGpuScopedZone::sCurrentDepth);
 #endif
             }
         } else {
@@ -762,8 +763,8 @@ IAGPQueryZonePtr InAppGpuGLContext::GetQueryZoneForName(const std::string& vName
                     m_QueryIDToZone[res->ids[1]] = res;
                     root->zonesDico[vName] = res;
                     root->zonesOrdered.push_back(res);
-#ifdef DEBUG_MODE_LOGGING
-                    // DEBUG_MODE_LOGGING("Profile : add zone %s at puDepth %u", vName.c_str(), InAppGpuScopedZone::sCurrentDepth);
+#ifdef IAGP_DEBUG_MODE_LOGGING
+                    // IAGP_DEBUG_MODE_LOGGING("Profile : add zone %s at puDepth %u", vName.c_str(), InAppGpuScopedZone::sCurrentDepth);
 #endif
                 } else {
                     DEBUG_BREAK;
@@ -785,7 +786,7 @@ IAGPQueryZonePtr InAppGpuGLContext::GetQueryZoneForName(const std::string& vName
 
         if (res->name != vName) {
             // at depth 0 there is only one frame
-            LOG_DEBUG_ERROR_MESSAGE("was registerd at depth %u %s. but we got %s\nwe clear the profiler",  //
+            IAGP_LOG_DEBUG_ERROR_MESSAGE("was registerd at depth %u %s. but we got %s\nwe clear the profiler",  //
                                     InAppGpuScopedZone::sCurrentDepth, res->name.c_str(), vName.c_str());
             // maybe the scoped frame is taken outside of the main frame
             Clear();
@@ -879,7 +880,7 @@ void InAppGpuProfiler::DrawFlamGraphChilds(ImGuiWindowFlags vFlags) {
         auto ptr = iagp::InAppGpuQueryZone::sTabbedQueryZones[idx].lock();
         if (ptr != nullptr) {
             bool opened = true;
-            ImGui::SetNextWindowSizeConstraints(SUB_AIGP_WINDOW_MIN_SIZE, ImGui::GetIO().DisplaySize);
+            ImGui::SetNextWindowSizeConstraints(IAGP_SUB_WINDOW_MIN_SIZE, ImGui::GetIO().DisplaySize);
             if (m_ImGuiBeginFunctor != nullptr && m_ImGuiBeginFunctor(ptr->imGuiTitle.c_str(), &opened, vFlags)) {
                 if (sIsActive) {
                     ptr->DrawFlamGraph(iagp::InAppGpuProfiler::Instance()->GetGraphTypeRef(), m_SelectedQuery);
@@ -913,9 +914,9 @@ void InAppGpuProfiler::m_DrawMenuBar() {
             InAppGpuQueryZone::sMaxDepthToOpen = InAppGpuScopedZone::sMaxDepth;
         }
 
-        IMGUI_PLAY_PAUSE_BUTTON(sIsPaused);
+        IAGP_IMGUI_PLAY_PAUSE_BUTTON(sIsPaused);
 
-        if (IMGUI_BUTTON("Details")) {
+        if (IAGP_IMGUI_BUTTON("Details")) {
             m_ShowDetails = !m_ShowDetails;
         }
 
@@ -937,7 +938,7 @@ void InAppGpuProfiler::m_DrawMenuBar() {
 
 void InAppGpuProfiler::DrawDetails(ImGuiWindowFlags vFlags) {
     if (m_ShowDetails) {
-        if (m_ImGuiBeginFunctor != nullptr && m_ImGuiBeginFunctor(AIGP_DETAILS_TITLE, &m_ShowDetails, vFlags)) {
+        if (m_ImGuiBeginFunctor != nullptr && m_ImGuiBeginFunctor(IAGP_DETAILS_TITLE, &m_ShowDetails, vFlags)) {
             DrawDetailsNoWin();
         }
         if (m_ImGuiEndFunctor != nullptr) {
@@ -974,7 +975,7 @@ void InAppGpuProfiler::DrawDetailsNoWin() {
     }
 }
 
-IAGPContextPtr InAppGpuProfiler::GetContextPtr(GPU_CONTEXT vThreadPtr) {
+IAGPContextPtr InAppGpuProfiler::GetContextPtr(IAGP_GPU_CONTEXT vThreadPtr) {
     if (!sIsActive) {
         return nullptr;
     }
@@ -987,7 +988,7 @@ IAGPContextPtr InAppGpuProfiler::GetContextPtr(GPU_CONTEXT vThreadPtr) {
         return m_Contexts[(intptr_t)vThreadPtr];
     }
 
-    LOG_ERROR_MESSAGE("GPU_CONTEXT vThreadPtr is NULL");
+    IAGP_LOG_ERROR_MESSAGE("GPU_CONTEXT vThreadPtr is NULL");
 
     return nullptr;
 }
@@ -1009,14 +1010,14 @@ InAppGpuScopedZone::InAppGpuScopedZone(const bool& vIsRoot, const std::string& v
         const int w = vsnprintf(TempBuffer, 256, fmt, args);
         va_end(args);
         if (w) {
-            auto context_ptr = InAppGpuProfiler::Instance()->GetContextPtr(GET_CURRENT_CONTEXT());
+            auto context_ptr = InAppGpuProfiler::Instance()->GetContextPtr(IAGP_GET_CURRENT_CONTEXT());
             if (context_ptr != nullptr) {
                 const auto& label = std::string(TempBuffer, (size_t)w);
                 queryPtr = context_ptr->GetQueryZoneForName(label, vSection, vIsRoot);
                 if (queryPtr != nullptr) {
                     glQueryCounter(queryPtr->ids[0], GL_TIMESTAMP);
-#ifdef DEBUG_MODE_LOGGING
-                    DEBUG_MODE_LOGGING("%*s begin : [%u:%u] (depth:%u) (%s)",  //
+#ifdef IAGP_DEBUG_MODE_LOGGING
+                    IAGP_DEBUG_MODE_LOGGING("%*s begin : [%u:%u] (depth:%u) (%s)",  //
                                        queryPtr->depth, "", queryPtr->ids[0], queryPtr->ids[1], queryPtr->depth, label.c_str());
 #endif
                     sCurrentDepth++;
@@ -1028,12 +1029,12 @@ InAppGpuScopedZone::InAppGpuScopedZone(const bool& vIsRoot, const std::string& v
 
 InAppGpuScopedZone::~InAppGpuScopedZone() {
     if (queryPtr != nullptr) {
-#ifdef DEBUG_MODE_LOGGING
+#ifdef IAGP_DEBUG_MODE_LOGGING
         if (queryPtr->depth > 0) {
-            DEBUG_MODE_LOGGING("%*s end : [%u:%u] (depth:%u)",  //
+            IAGP_DEBUG_MODE_LOGGING("%*s end : [%u:%u] (depth:%u)",  //
                                (queryPtr->depth - 1U), "", queryPtr->ids[0], queryPtr->ids[1], queryPtr->depth);
         } else {
-            DEBUG_MODE_LOGGING("end : [%u:%u] (depth:%u)",  //
+            IAGP_DEBUG_MODE_LOGGING("end : [%u:%u] (depth:%u)",  //
                                queryPtr->ids[0], queryPtr->ids[1], 0);
         }
 #endif
