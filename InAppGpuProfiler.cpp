@@ -66,33 +66,45 @@ static void SetCurrentContext(GPU_CONTEXT vContextPtr) {
 static void LogError(const char* fmt, ...) {
     DEBUG_BREAK;  // you need to define your own function for get error messages
 }
-#define LOG_ERROR_MESSAGE LogError
+#define IAGP_LOG_ERROR_MESSAGE LogError
 #endif  // LOG_ERROR_MESSAGE
 
 #ifndef IAGP_LOG_DEBUG_ERROR_MESSAGE
 static void LogDebugError(const char* fmt, ...) {
     DEBUG_BREAK;  // you need to define your own function for get error messages in debug
 }
-#define LOG_DEBUG_ERROR_MESSAGE LogDebugError
+#define IAGP_LOG_DEBUG_ERROR_MESSAGE LogDebugError
 #endif  // LOG_DEBUG_ERROR_MESSAGE
 
 #ifndef IAGP_IMGUI_BUTTON
 #define IAGP_IMGUI_BUTTON ImGui ::Button
 #endif  // IMGUI_BUTTON
 
+#ifndef IAGP_IMGUI_PLAY_LABEL
+#define IAGP_IMGUI_PLAY_LABEL "Play"
+#endif
+
+#ifndef IAGP_IMGUI_PAUSE_LABEL
+#define IAGP_IMGUI_PAUSE_LABEL "Pause"
+#endif
+
+#ifndef IAGP_IMGUI_PLAY_PAUSE_HELP
+#define IAGP_IMGUI_PLAY_PAUSE_HELP "Play/Pause Profiling"
+#endif
+
 #ifndef IAGP_IMGUI_PLAY_PAUSE_BUTTON
 static bool PlayPauseButton(bool& vPlayPause) {
     bool res = false;
-    const char* play_pause_label = "Play";
+    const char* play_pause_label = IAGP_IMGUI_PAUSE_LABEL;
     if (vPlayPause) {
-        play_pause_label = "Pause";
+        play_pause_label = IAGP_IMGUI_PLAY_LABEL;
     }
-    if (ImGui::Button(play_pause_label)) {
+    if (IAGP_IMGUI_BUTTON(play_pause_label)) {
         vPlayPause = !vPlayPause;
         res = true;
     }
     if (ImGui::IsItemHovered()) {
-        ImGui::SetTooltip("Play/Pause Profiling");
+        ImGui::SetTooltip(IAGP_IMGUI_PLAY_PAUSE_HELP);
     }
     return res;
 }
@@ -269,11 +281,21 @@ void InAppGpuQueryZone::DrawDetails() {
 
         ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_CollapsingHeader | ImGuiTreeNodeFlags_DefaultOpen;
 
-        if (zonesOrdered.empty())
-            flags |= ImGuiTreeNodeFlags_Leaf;
+        bool any_childs_to_show = false;
+        for (const auto zone : zonesOrdered) {
+            if (zone != nullptr && zone->m_ElapsedTime > 0.0) {
+                any_childs_to_show = true;
+                break;
+            }
+        }
 
-        if (m_Highlighted)
+        if (!any_childs_to_show) {
+            flags |= ImGuiTreeNodeFlags_Leaf;
+        }
+
+        if (m_Highlighted) {
             flags |= ImGuiTreeNodeFlags_Framed;
+        }
 
         const auto colorU32 = ImGui::ColorConvertFloat4ToU32(cv4);
         const bool pushed = PushStyleColorWithContrast(colorU32, ImGuiCol_Text, ImVec4(0, 0, 0, 1), InAppGpuQueryZone::sContrastRatio);
@@ -285,11 +307,9 @@ void InAppGpuQueryZone::DrawDetails() {
         ImGui::PushStyleColor(ImGuiCol_HeaderActive, active_color);
 
         if (m_IsRoot) {
-            res = ImGui::TreeNodeEx(this, flags,  //
-                                    "(%u) %s %u : GPU %.2f ms", depth, name.c_str(), m_StartFrameId - 1U, m_ElapsedTime);
+            res = ImGui::TreeNodeEx(this, flags, "%s %u", name.c_str(), m_StartFrameId - 1U);
         } else {
-            res = ImGui::TreeNodeEx(this, flags,  //
-                                    "(%u) %s => GPU %.2f ms", depth, name.c_str(), m_ElapsedTime);
+            res = ImGui::TreeNodeEx(this, flags, "%s", name.c_str());
         }
 
         ImGui::PopStyleColor(3);
@@ -302,18 +322,18 @@ void InAppGpuQueryZone::DrawDetails() {
             m_Highlighted = true;
         }
 
-        ImGui::TableNextColumn();  // start time
-        ImGui::Text("%.5f", m_StartTime);
-        ImGui::TableNextColumn();  // end time
-        ImGui::Text("%.5f", m_EndTime);
         ImGui::TableNextColumn();  // Elapsed time
-        ImGui::Text("%.5f", m_ElapsedTime);
+        ImGui::Text("%.5f ms", m_ElapsedTime);
+        ImGui::TableNextColumn();  // start time
+        ImGui::Text("%.5f ms", m_StartTime);
+        ImGui::TableNextColumn();  // end time
+        ImGui::Text("%.5f ms", m_EndTime);
 
         if (res) {
             m_Expanded = true;
             ImGui::Indent();
             for (const auto zone : zonesOrdered) {
-                if (zone != nullptr) {
+                if (zone != nullptr && zone->m_ElapsedTime > 0.0) {
                     zone->DrawDetails();
                 }
             }
@@ -998,10 +1018,10 @@ void InAppGpuProfiler::DrawDetailsNoWin() {
     const auto& size = ImGui::GetContentRegionAvail();
     auto listViewID = ImGui::GetID("##InAppGpuProfiler_DrawDetails");
     if (ImGui::BeginTableEx("##InAppGpuProfiler_DrawDetails", listViewID, 4, flags, size, 0.0f)) {
-        ImGui::TableSetupColumn("Tree");
+        ImGui::TableSetupColumn("Tree", ImGuiTableColumnFlags_WidthStretch);
+        ImGui::TableSetupColumn("Elapsed time");
         ImGui::TableSetupColumn("Start time");
         ImGui::TableSetupColumn("End time");
-        ImGui::TableSetupColumn("Elapsed time");
         ImGui::TableHeadersRow();
         for (const auto& con : m_Contexts) {
             if (con.second != nullptr) {

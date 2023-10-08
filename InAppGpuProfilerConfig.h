@@ -43,6 +43,9 @@
 
 // the Imgui Play/Pause button to use
 //#define IAGP_IMGUI_PLAY_PAUSE_BUTTON
+//#define IAGP_IMGUI_PLAY_LABEL "Play"
+//#define IAGP_IMGUI_PAUSE_LABEL "Pause"
+//#define IAGP_IMGUI_PLAY_PAUSE_HELP "Play/Pause Profiling"
 
 // define your fucntion for log error message of IAGP
 //#define IAGP_LOG_ERROR_MESSAGE LogError
