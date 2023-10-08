@@ -331,6 +331,12 @@ void InAppGpuQueryZone::DrawDetails() {
 #endif
         ImGui::TableNextColumn();  // Elapsed time
         ImGui::Text("%.5f ms", m_ElapsedTime);
+        ImGui::TableNextColumn();  // Max fps
+        if (m_ElapsedTime > 0.0f) {
+            ImGui::Text("%.2f f/s", 1000.0f / m_ElapsedTime);
+        } else {
+            ImGui::Text("%s", "Infinite");
+        }
         ImGui::TableNextColumn();  // start time
         ImGui::Text("%.5f ms", m_StartTime);
         ImGui::TableNextColumn();  // end time
@@ -819,11 +825,12 @@ IAGPQueryZonePtr InAppGpuGLContext::GetQueryZoneForName(const void* vPtr, const 
         auto root = m_GetQueryZoneFromDepth(InAppGpuScopedZone::sCurrentDepth - 1U);
         if (root != nullptr) {
             bool found = false;
-            const auto ptr_iter = root->zonesDico.find(vPtr);
+            const auto& key_str = vSection + vName;
+            const auto& ptr_iter = root->zonesDico.find(vPtr);
             if (ptr_iter == root->zonesDico.end()) {  // not found
                 found = false;
             } else {  // found
-                found = (ptr_iter->second.find(vName) != ptr_iter->second.end());  // not found
+                found = (ptr_iter->second.find(key_str) != ptr_iter->second.end());  // not found
             }
             if (!found) {  // not found
                 res = InAppGpuQueryZone::create(m_Context, vPtr, vName, vSection, vIsRoot);
@@ -834,7 +841,7 @@ IAGPQueryZonePtr InAppGpuGLContext::GetQueryZoneForName(const void* vPtr, const 
                     res->UpdateBreadCrumbTrail();
                     m_QueryIDToZone[res->ids[0]] = res;
                     m_QueryIDToZone[res->ids[1]] = res;
-                    root->zonesDico[vPtr][vName] = res;
+                    root->zonesDico[vPtr][key_str] = res;
                     root->zonesOrdered.push_back(res);
 #ifdef IAGP_DEBUG_MODE_LOGGING
                     // IAGP_DEBUG_MODE_LOGGING("Profile : add zone %s at puDepth %u", vName.c_str(), InAppGpuScopedZone::sCurrentDepth);
@@ -843,7 +850,7 @@ IAGPQueryZonePtr InAppGpuGLContext::GetQueryZoneForName(const void* vPtr, const 
                     DEBUG_BREAK;
                 }
             } else {
-                res = root->zonesDico[vPtr][vName];
+                res = root->zonesDico[vPtr][key_str];
             }
         } else {
             return res;  // happen when profiling is activated inside a profiling zone
@@ -1027,7 +1034,7 @@ void InAppGpuProfiler::DrawDetailsNoWin() {
         return;
     }
 
-    int32_t count_tables = 4;
+    int32_t count_tables = 5;
 #ifdef IAGP_SHOW_COUNT
     ++count_tables;
 #endif
@@ -1046,6 +1053,7 @@ void InAppGpuProfiler::DrawDetailsNoWin() {
         ImGui::TableSetupColumn("Count");
 #endif
         ImGui::TableSetupColumn("Elapsed time");
+        ImGui::TableSetupColumn("Max fps");
         ImGui::TableSetupColumn("Start time");
         ImGui::TableSetupColumn("End time");
         ImGui::TableHeadersRow();
@@ -1111,19 +1119,21 @@ InAppGpuScopedZone::InAppGpuScopedZone(const bool& vIsRoot, const void* vPtr, co
 }
 
 InAppGpuScopedZone::~InAppGpuScopedZone() {
-    if (queryPtr != nullptr) {
+    if (InAppGpuProfiler::sIsActive) {
+        if (queryPtr != nullptr) {
 #ifdef IAGP_DEBUG_MODE_LOGGING
-        if (queryPtr->depth > 0) {
-            IAGP_DEBUG_MODE_LOGGING("%*s end : [%u:%u] (depth:%u)",  //
-                               (queryPtr->depth - 1U), "", queryPtr->ids[0], queryPtr->ids[1], queryPtr->depth);
-        } else {
-            IAGP_DEBUG_MODE_LOGGING("end : [%u:%u] (depth:%u)",  //
-                               queryPtr->ids[0], queryPtr->ids[1], 0);
-        }
+            if (queryPtr->depth > 0) {
+                IAGP_DEBUG_MODE_LOGGING("%*s end : [%u:%u] (depth:%u)",  //
+                                        (queryPtr->depth - 1U), "", queryPtr->ids[0], queryPtr->ids[1], queryPtr->depth);
+            } else {
+                IAGP_DEBUG_MODE_LOGGING("end : [%u:%u] (depth:%u)",  //
+                                        queryPtr->ids[0], queryPtr->ids[1], 0);
+            }
 #endif
-        glQueryCounter(queryPtr->ids[1], GL_TIMESTAMP);
-        ++queryPtr->current_count;
-        --sCurrentDepth;
+            glQueryCounter(queryPtr->ids[1], GL_TIMESTAMP);
+            ++queryPtr->current_count;
+            --sCurrentDepth;
+        }
     }
 }
 

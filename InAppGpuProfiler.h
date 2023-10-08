@@ -48,7 +48,7 @@ SOFTWARE.
 #endif // IN_APP_GPU_PROFILER_API
 
 // a main zone for the frame must always been defined for the frame
-#define AIGPNewFrame(section, fmt, ...)                                                        \
+#define AIGPNewFrame(section, fmt, ...)  \
     auto __IAGP__ScopedMainZone = iagp::InAppGpuScopedZone(true, nullptr, section, fmt, ##__VA_ARGS__); \
     (void)__IAGP__ScopedMainZone
 
