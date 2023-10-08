@@ -49,11 +49,15 @@ SOFTWARE.
 
 // a main zone for the frame must always been defined for the frame
 #define AIGPNewFrame(section, fmt, ...)                                                        \
-    auto __IAGP__ScopedMainZone = iagp::InAppGpuScopedZone(true, section, fmt, ##__VA_ARGS__); \
+    auto __IAGP__ScopedMainZone = iagp::InAppGpuScopedZone(true, nullptr, section, fmt, ##__VA_ARGS__); \
     (void)__IAGP__ScopedMainZone
 
 #define AIGPScoped(section, fmt, ...)                                                          \
-    auto __IAGP__ScopedSubZone = iagp::InAppGpuScopedZone(false, section, fmt, ##__VA_ARGS__); \
+    auto __IAGP__ScopedSubZone = iagp::InAppGpuScopedZone(false, nullptr, section, fmt, ##__VA_ARGS__); \
+    (void)__IAGP__ScopedSubZone
+
+#define AIGPScopedPtr(ptr, section, fmt, ...)                                                                   \
+    auto __IAGP__ScopedSubZone = iagp::InAppGpuScopedZone(false, ptr, section, fmt, ##__VA_ARGS__); \
     (void)__IAGP__ScopedSubZone
 
 #define AIGPCollect iagp::InAppGpuProfiler::Instance()->Collect()
@@ -147,23 +151,27 @@ public:
     static float sContrastRatio;
     static bool sActivateLogger;
     static std::vector<IAGPQueryZoneWeak> sTabbedQueryZones;
-    static IAGPQueryZonePtr create(IAGP_GPU_CONTEXT vContext, const std::string& vName, const std::string& vSectionName, const bool& vIsRoot = false);
+    static IAGPQueryZonePtr create(IAGP_GPU_CONTEXT vContext, const void* vPtr, const std::string& vName, const std::string& vSectionName,
+                                   const bool& vIsRoot = false);
     static circularSettings sCircularSettings;
 
 public:
     GLuint depth = 0U;  // the depth of the QueryZone
     GLuint ids[2] = {0U, 0U};
     std::vector<IAGPQueryZonePtr> zonesOrdered;
-    std::unordered_map<std::string, IAGPQueryZonePtr> zonesDico;  // main container
+    std::unordered_map<const void*, std::unordered_map<std::string, IAGPQueryZonePtr>> zonesDico;  // main container
     std::string name;
     std::string imGuiLabel;
     std::string imGuiTitle;
     IAGPQueryZonePtr parentPtr = nullptr;
     IAGPQueryZonePtr rootPtr = nullptr;
+    GLuint current_count = 0U;
+    GLuint last_count = 0U;
 
 private:
     IAGPQueryZoneWeak m_This;
     bool m_IsRoot = false;
+    const void* m_Ptr = nullptr;
     double m_ElapsedTime = 0.0;
     double m_StartTime = 0.0;
     double m_EndTime = 0.0;
@@ -193,16 +201,19 @@ private:
 
 public:
     InAppGpuQueryZone() = default;
-    InAppGpuQueryZone(IAGP_GPU_CONTEXT vContext, const std::string& vName, const std::string& vSectionName, const bool& vIsRoot = false);
+    InAppGpuQueryZone(IAGP_GPU_CONTEXT vContext, const void* vPtr, const std::string& vName, const std::string& vSectionName,
+                      const bool& vIsRoot = false);
     ~InAppGpuQueryZone();
     void Clear();
     void SetStartTimeStamp(const GLuint64& vValue);
     void SetEndTimeStamp(const GLuint64& vValue);
     void ComputeElapsedTime();
     void DrawDetails();
-    bool DrawFlamGraph(InAppGpuGraphTypeEnum vGraphType, IAGPQueryZoneWeak& vOutSelectedQuery, IAGPQueryZoneWeak vParent = {},
+    bool DrawFlamGraph(InAppGpuGraphTypeEnum vGraphType,      //
+                       IAGPQueryZoneWeak& vOutSelectedQuery,  //
+                       IAGPQueryZoneWeak vParent = {},        //
                        uint32_t vDepth = 0);
-    void updateBreadCrumbTrail();
+    void UpdateBreadCrumbTrail();
     void DrawBreadCrumbTrail(IAGPQueryZoneWeak& vOutSelectedQuery);
 
 private:
@@ -235,7 +246,7 @@ public:
     void Collect();
     void DrawFlamGraph(const InAppGpuGraphTypeEnum& vGraphType);
     void DrawDetails();
-    IAGPQueryZonePtr GetQueryZoneForName(const std::string& vName, const std::string& vSection = "", const bool& vIsRoot = false);
+    IAGPQueryZonePtr GetQueryZoneForName(const void* vPtr, const std::string& vName, const std::string& vSection = "", const bool& vIsRoot = false);
 
 private:
     void m_SetQueryZoneForDepth(IAGPQueryZonePtr vQueryZone, GLuint vDepth);
@@ -251,7 +262,7 @@ public:
     IAGPQueryZonePtr queryPtr = nullptr;
 
 public:
-    InAppGpuScopedZone(const bool& vIsRoot, const std::string& vSection, const char* fmt, ...);
+    InAppGpuScopedZone(const bool& vIsRoot, const void* vPtr, const std::string& vSection, const char* fmt, ...);
     ~InAppGpuScopedZone();
 };
 
