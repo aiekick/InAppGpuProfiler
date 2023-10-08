@@ -267,7 +267,7 @@ void InAppGpuQueryZone::DrawDetails() {
 
         ImGui::TableNextColumn();  // tree
 
-        ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_DefaultOpen;
+        ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_CollapsingHeader | ImGuiTreeNodeFlags_DefaultOpen;
 
         if (zonesOrdered.empty())
             flags |= ImGuiTreeNodeFlags_Leaf;
@@ -275,14 +275,32 @@ void InAppGpuQueryZone::DrawDetails() {
         if (m_Highlighted)
             flags |= ImGuiTreeNodeFlags_Framed;
 
+        const auto colorU32 = ImGui::ColorConvertFloat4ToU32(cv4);
+        const bool pushed = PushStyleColorWithContrast(colorU32, ImGuiCol_Text, ImVec4(0, 0, 0, 1), InAppGpuQueryZone::sContrastRatio);
+
+        ImGui::PushStyleColor(ImGuiCol_Header, cv4);
+        const auto hovered_color = ImVec4(cv4.x * 0.9f, cv4.y * 0.9f, cv4.z * 0.9f, 1.0f);
+        const auto active_color = ImVec4(cv4.x * 0.8f, cv4.y * 0.8f, cv4.z * 0.8f, 1.0f);
+        ImGui::PushStyleColor(ImGuiCol_HeaderHovered, hovered_color);
+        ImGui::PushStyleColor(ImGuiCol_HeaderActive, active_color);
+
         if (m_IsRoot) {
-            res = ImGui::TreeNodeEx(this, flags, "(%u) %s %u : GPU %.2f ms", depth, name.c_str(), m_StartFrameId - 1U, m_ElapsedTime);
+            res = ImGui::TreeNodeEx(this, flags,  //
+                                    "(%u) %s %u : GPU %.2f ms", depth, name.c_str(), m_StartFrameId - 1U, m_ElapsedTime);
         } else {
-            res = ImGui::TreeNodeEx(this, flags, "(%u) %s => GPU %.2f ms", depth, name.c_str(), m_ElapsedTime);
+            res = ImGui::TreeNodeEx(this, flags,  //
+                                    "(%u) %s => GPU %.2f ms", depth, name.c_str(), m_ElapsedTime);
         }
 
-        if (ImGui::IsItemHovered())
+        ImGui::PopStyleColor(3);
+
+        if (pushed) {
+            ImGui::PopStyleColor();
+        }
+
+        if (ImGui::IsItemHovered()) {
             m_Highlighted = true;
+        }
 
         ImGui::TableNextColumn();  // start time
         ImGui::Text("%.5f", m_StartTime);
@@ -293,18 +311,13 @@ void InAppGpuQueryZone::DrawDetails() {
 
         if (res) {
             m_Expanded = true;
-
             ImGui::Indent();
-
             for (const auto zone : zonesOrdered) {
                 if (zone != nullptr) {
                     zone->DrawDetails();
                 }
             }
-
             ImGui::Unindent();
-
-            ImGui::TreePop();
         } else {
             m_Expanded = false;
         }
@@ -320,10 +333,10 @@ bool InAppGpuQueryZone::DrawFlamGraph(InAppGpuGraphTypeEnum vGraphType, IAGPQuer
 
     bool pressed = false;
     switch (vGraphType) {
-        case InAppGpuGraphTypeEnum::IN_APP_GPU_HORIZONTAL:  //
+        case InAppGpuGraphTypeEnum::IN_APP_GPU_HORIZONTAL:  // horizontal flame graph (standard and legacy)
             pressed = m_DrawHorizontalFlameGraph(m_This.lock(), vOutSelectedQuery, vParent, vDepth);
             break;
-        case InAppGpuGraphTypeEnum::IN_APP_GPU_CIRCULAR:  //
+        case InAppGpuGraphTypeEnum::IN_APP_GPU_CIRCULAR:  // circular flame graph
             pressed = m_DrawCircularFlameGraph(m_This.lock(), vOutSelectedQuery, vParent, vDepth);
             break;
     }
@@ -401,6 +414,29 @@ void InAppGpuQueryZone::DrawBreadCrumbTrail(IAGPQueryZoneWeak& vOutSelectedQuery
         ImGui::Text("> %s", name.c_str());
     }
     ImGui::PopID();
+}
+
+void InAppGpuQueryZone::m_DrawList_DrawBar(const char* vLabel, const ImRect& vRect, const ImVec4& vColor, const bool& vHovered) {
+    const ImGuiContext& g = *GImGui;
+    ImGuiWindow* window = g.CurrentWindow;
+    const ImGuiStyle& style = g.Style;
+    const ImVec2 label_size = ImGui::CalcTextSize(vLabel, nullptr, true);
+
+    const auto colorU32 = ImGui::ColorConvertFloat4ToU32(vColor);
+    ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 1.0f);
+    ImGui::RenderFrame(vRect.Min, vRect.Max, colorU32, true, 2.0f);
+    if (vHovered) {
+        const auto selectU32 = ImGui::ColorConvertFloat4ToU32(ImVec4(1.0f - cv4.x, 1.0f - cv4.y, 1.0f - cv4.z, 1.0f));
+        window->DrawList->AddRect(vRect.Min, vRect.Max, selectU32, true, 0, 2.0f);
+    }
+    ImGui::PopStyleVar();
+
+    const bool pushed = PushStyleColorWithContrast(colorU32, ImGuiCol_Text, ImVec4(0, 0, 0, 1), InAppGpuQueryZone::sContrastRatio);
+    ImGui::RenderTextClipped(vRect.Min + style.FramePadding, vRect.Max - style.FramePadding,  //
+                             vLabel, nullptr, &label_size, ImVec2(0.5f, 0.5f), &vRect);
+    if (pushed) {
+        ImGui::PopStyleColor();
+    }
 }
 
 bool InAppGpuQueryZone::m_ComputeRatios(IAGPQueryZonePtr vRoot, IAGPQueryZoneWeak vParent, uint32_t vDepth, float& vOutStartRatio,
@@ -511,20 +547,7 @@ bool InAppGpuQueryZone::m_DrawHorizontalFlameGraph(IAGPQueryZonePtr vRoot, IAGPQ
                 ImGui::ColorConvertHSVtoRGB(hsv.x, hsv.y, hsv.z, cv4.x, cv4.y, cv4.z);
                 cv4.w = 1.0f;
                 ImGui::RenderNavHighlight(bb, id);
-                ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 1.0f);
-                const auto colorU32 = ImGui::ColorConvertFloat4ToU32(cv4);
-                ImGui::RenderFrame(bb.Min, bb.Max, colorU32, true, 2.0f);
-                if (hovered) {
-                    const auto selectU32 = ImGui::ColorConvertFloat4ToU32(ImVec4(1.0f - cv4.x, 1.0f - cv4.y, 1.0f - cv4.z, 1.0f));
-                    window->DrawList->AddRect(bb.Min, bb.Max, selectU32, true, 0, 2.0f);
-                }
-                ImGui::PopStyleVar();
-                const bool pushed = PushStyleColorWithContrast(colorU32, ImGuiCol_Text, ImVec4(0, 0, 0, 1), InAppGpuQueryZone::sContrastRatio);
-                ImGui::RenderTextClipped(bb.Min + style.FramePadding, bb.Max - style.FramePadding, label, nullptr, &label_size,
-                                         ImVec2(0.5f, 0.5f) /*style.ButtonTextAlign*/, &bb);
-                if (pushed) {
-                    ImGui::PopStyleColor();
-                }
+                m_DrawList_DrawBar(label, bb, cv4, hovered);
                 ++vDepth;
             }
 
@@ -932,9 +955,10 @@ void InAppGpuProfiler::m_DrawMenuBar() {
             m_ShowDetails = !m_ShowDetails;
         }
 
-        //ImGui::Checkbox("Logging", &InAppGpuQueryZone::sActivateLogger);
+#ifdef IAGP_DEV_MODE
+        ImGui::Checkbox("Logging", &InAppGpuQueryZone::sActivateLogger);
 
-        /*if (ImGui::BeginMenu("Graph Types")) {
+        if (ImGui::BeginMenu("Graph Types")) {
             if (ImGui::MenuItem("Horizontal", nullptr, m_GraphType == iagp::InAppGpuGraphTypeEnum::IN_APP_GPU_HORIZONTAL)) {
                 m_GraphType = iagp::InAppGpuGraphTypeEnum::IN_APP_GPU_HORIZONTAL;
             }
@@ -942,7 +966,8 @@ void InAppGpuProfiler::m_DrawMenuBar() {
                 m_GraphType = iagp::InAppGpuGraphTypeEnum::IN_APP_GPU_CIRCULAR;
             }
             ImGui::EndMenu();
-        }*/
+        }
+#endif
 
         ImGui::EndMenuBar();
     }

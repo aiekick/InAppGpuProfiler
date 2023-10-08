@@ -206,6 +206,7 @@ public:
     void DrawBreadCrumbTrail(IAGPQueryZoneWeak& vOutSelectedQuery);
 
 private:
+    void m_DrawList_DrawBar(const char* vLabel, const ImRect& vRect, const ImVec4& vColor, const bool& vHovered);
     bool m_ComputeRatios(IAGPQueryZonePtr vRoot, IAGPQueryZoneWeak vParent, uint32_t vDepth, float& vOutStartRatio, float& vOutSizeRatio);
     bool m_DrawHorizontalFlameGraph(IAGPQueryZonePtr vRoot, IAGPQueryZoneWeak& vOutSelectedQuery, IAGPQueryZoneWeak vParent,
                                     uint32_t vDepth);
