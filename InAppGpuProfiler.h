@@ -34,49 +34,53 @@ SOFTWARE.
 #include <imgui.h>
 #include <functional>
 #include <unordered_map>
-#include <vulkan/vulkan.h>
-
-#define VULKAN_PROFILING
 
 #ifndef IMGUI_DEFINE_MATH_OPERATORS
 #define IMGUI_DEFINE_MATH_OPERATORS
 #endif  // IMGUI_DEFINE_MATH_OPERATORS
 
-#include <ImGuiPack.h>
-#include <LumoBackend/Headers/LumoBackendDefs.h>
+#ifndef CUSTOM_IN_APP_GPU_PROFILER_CONFIG
+#include "InAppGpuProfilerConfig.h"
+#else // CUSTOM_IN_APP_GPU_PROFILER_CONFIG
+#include CUSTOM_IN_APP_GPU_PROFILER_CONFIG
+#endif // CUSTOM_IN_APP_GPU_PROFILER_CONFIG
+
+#ifndef IN_APP_GPU_PROFILER_API
+#define IN_APP_GPU_PROFILER_API
+#endif // IN_APP_GPU_PROFILER_API
 
 #ifdef VULKAN_PROFILING
 // a main zone for the frame must always been defined for the frame
 #define AIGPNewFrame(commandBuffer, contextPtr, section, fmt, ...)                                                                   \
-    auto __IAGP__ScopedMainZone = iagp::vkInAppGpuScopedZone(commandBuffer, true, contextPtr, nullptr, section, fmt, ##__VA_ARGS__); \
+    auto __IAGP__ScopedMainZone = iagp::InAppGpuScopedZone(commandBuffer, true, contextPtr, nullptr, section, fmt, ##__VA_ARGS__); \
     (void)__IAGP__ScopedMainZone
 
 #define AIGPScoped(commandBuffer, contextPtr, section, fmt, ...)                                                                     \
-    auto __IAGP__ScopedSubZone = iagp::vkInAppGpuScopedZone(commandBuffer, false, contextPtr, nullptr, section, fmt, ##__VA_ARGS__); \
+    auto __IAGP__ScopedSubZone = iagp::InAppGpuScopedZone(commandBuffer, false, contextPtr, nullptr, section, fmt, ##__VA_ARGS__); \
     (void)__IAGP__ScopedSubZone
 
 #define AIGPScopedPtr(commandBuffer, contextPtr, ptr, section, fmt, ...)                                                         \
-    auto __IAGP__ScopedSubZone = iagp::vkInAppGpuScopedZone(commandBuffer, false, contextPtr, ptr, section, fmt, ##__VA_ARGS__); \
+    auto __IAGP__ScopedSubZone = iagp::InAppGpuScopedZone(commandBuffer, false, contextPtr, ptr, section, fmt, ##__VA_ARGS__); \
     (void)__IAGP__ScopedSubZone
 
-#define AIGPCollect(resetQueryPoolCommandBuffer) iagp::vkInAppGpuProfiler::Instance()->Collect(resetQueryPoolCommandBuffer)
+#define AIGPCollect(resetQueryPoolCommandBuffer) iagp::InAppGpuProfiler::Instance()->Collect(resetQueryPoolCommandBuffer)
 #endif // VULKAN_PROFILING
 
 #ifdef OPENGl_PROFILING
 // a main zone for the frame must always been defined for the frame
 #define AIGPNewFrame(section, fmt, ...)                                                                   \
-    auto __IAGP__ScopedMainZone = iagp::vkInAppGpuScopedZone(true, nullptr, section, fmt, ##__VA_ARGS__); \
+    auto __IAGP__ScopedMainZone = iagp::InAppGpuScopedZone(true, nullptr, section, fmt, ##__VA_ARGS__); \
     (void)__IAGP__ScopedMainZone
 
 #define AIGPScoped(section, fmt, ...)                                                                     \
-    auto __IAGP__ScopedSubZone = iagp::vkInAppGpuScopedZone(false, nullptr, section, fmt, ##__VA_ARGS__); \
+    auto __IAGP__ScopedSubZone = iagp::InAppGpuScopedZone(false, nullptr, section, fmt, ##__VA_ARGS__); \
     (void)__IAGP__ScopedSubZone
 
 #define AIGPScopedPtr(ptr, section, fmt, ...)                                                         \
-    auto __IAGP__ScopedSubZone = iagp::vkInAppGpuScopedZone(false, ptr, section, fmt, ##__VA_ARGS__); \
+    auto __IAGP__ScopedSubZone = iagp::InAppGpuScopedZone(false, ptr, section, fmt, ##__VA_ARGS__); \
     (void)__IAGP__ScopedSubZone
 
-#define AIGPCollect iagp::vkInAppGpuProfiler::Instance()->Collect()
+#define AIGPCollect iagp::InAppGpuProfiler::Instance()->Collect()
 #endif // OPENGl_PROFILING
 
 #ifndef IAGP_RECURSIVE_LEVELS_COUNT
@@ -96,18 +100,18 @@ namespace iagp {
 typedef uint64_t vkTimeStamp;
 #endif
 
-class vkInAppGpuQueryZone;
-typedef std::shared_ptr<vkInAppGpuQueryZone> IAGPQueryZonePtr;
-typedef std::weak_ptr<vkInAppGpuQueryZone> IAGPQueryZoneWeak;
+class InAppGpuQueryZone;
+typedef std::shared_ptr<InAppGpuQueryZone> IAGPQueryZonePtr;
+typedef std::weak_ptr<InAppGpuQueryZone> IAGPQueryZoneWeak;
 
-class vkInAppGpuContext;
-typedef std::shared_ptr<vkInAppGpuContext> IAGPContextPtr;
-typedef std::weak_ptr<vkInAppGpuContext> IAGPContextWeak;
+class InAppGpuContext;
+typedef std::shared_ptr<InAppGpuContext> IAGPContextPtr;
+typedef std::weak_ptr<InAppGpuContext> IAGPContextWeak;
 
-enum vkInAppGpuGraphTypeEnum { IN_APP_GPU_HORIZONTAL = 0, IN_APP_GPU_CIRCULAR, IN_APP_GPU_Count };
+enum InAppGpuGraphTypeEnum { IN_APP_GPU_HORIZONTAL = 0, IN_APP_GPU_CIRCULAR, IN_APP_GPU_Count };
 
 template <typename T>
-class vkInAppGpuAverageValue {
+class InAppGpuAverageValue {
 private:
     static constexpr uint32_t sCountAverageValues = IAGP_MEAN_AVERAGE_LEVELS_COUNT;
     T m_PerFrame[sCountAverageValues] = {};
@@ -116,13 +120,13 @@ private:
     T m_AverageValue = (T)0;
 
 public:
-    vkInAppGpuAverageValue();
+    InAppGpuAverageValue();
     void AddValue(T vValue);
     T GetAverage();
 };
 
 template <typename T>
-vkInAppGpuAverageValue<T>::vkInAppGpuAverageValue() {
+InAppGpuAverageValue<T>::InAppGpuAverageValue() {
     memset(m_PerFrame, 0, sizeof(T) * sCountAverageValues);
     m_PerFrameIdx = (T)0;
     m_PerFrameAccum = (T)0;
@@ -130,7 +134,7 @@ vkInAppGpuAverageValue<T>::vkInAppGpuAverageValue() {
 }
 
 template <typename T>
-void vkInAppGpuAverageValue<T>::AddValue(T vValue) {
+void InAppGpuAverageValue<T>::AddValue(T vValue) {
     if (vValue < m_PerFrame[m_PerFrameIdx]) {
         memset(m_PerFrame, 0, sizeof(T) * sCountAverageValues);
         m_PerFrameIdx = (T)0;
@@ -146,11 +150,11 @@ void vkInAppGpuAverageValue<T>::AddValue(T vValue) {
 }
 
 template <typename T>
-T vkInAppGpuAverageValue<T>::GetAverage() {
+T InAppGpuAverageValue<T>::GetAverage() {
     return m_AverageValue;
 }
 
-class LUMO_BACKEND_API vkInAppGpuQueryZone {
+class IN_APP_GPU_PROFILER_API InAppGpuQueryZone {
 public:
     struct circularSettings {
         float count_point = 20.0f;  // 60 for 2pi
@@ -183,8 +187,10 @@ public:
     IAGPQueryZonePtr rootPtr = nullptr;
     uint32_t current_count = 0U;
     uint32_t last_count = 0U;
+#ifdef VULKAN_PROFILING
     VkCommandBuffer commandBuffer;
     VkQueryPool queryPool;
+#endif
 
 private:
     IAGPQueryZoneWeak m_This;
@@ -199,14 +205,14 @@ private:
     uint64_t m_EndTimeStamp = 0;
     bool m_Expanded = false;
     bool m_Highlighted = false;
-    vkInAppGpuAverageValue<uint64_t> m_AverageStartValue;
-    vkInAppGpuAverageValue<uint64_t> m_AverageEndValue;
+    InAppGpuAverageValue<uint64_t> m_AverageStartValue;
+    InAppGpuAverageValue<uint64_t> m_AverageEndValue;
     IAGP_GPU_CONTEXT m_Context;
     std::string m_BarLabel;
     std::string m_SectionName;
     ImVec4 cv4;
     ImVec4 hsv;
-    vkInAppGpuGraphTypeEnum m_GraphType = vkInAppGpuGraphTypeEnum::IN_APP_GPU_HORIZONTAL;
+    InAppGpuGraphTypeEnum m_GraphType = InAppGpuGraphTypeEnum::IN_APP_GPU_HORIZONTAL;
 
     // fil d'ariane
     std::array<IAGPQueryZoneWeak, IAGP_RECURSIVE_LEVELS_COUNT> m_BreadCrumbTrail;  // the parent cound is done by current depth
@@ -218,16 +224,16 @@ private:
     ImVec2 m_P0, m_P1, m_LP0, m_LP1;
 
 public:
-    vkInAppGpuQueryZone() = default;
-    vkInAppGpuQueryZone(
+    InAppGpuQueryZone() = default;
+    InAppGpuQueryZone(
         IAGP_GPU_CONTEXT vContext, const void* vPtr, const std::string& vName, const std::string& vSectionName, const bool& vIsRoot = false);
-    ~vkInAppGpuQueryZone();
+    ~InAppGpuQueryZone();
     void Clear();
     void SetStartTimeStamp(const uint64_t& vValue);
     void SetEndTimeStamp(const uint64_t& vValue);
     void ComputeElapsedTime();
     void DrawDetails();
-    bool DrawFlamGraph(vkInAppGpuGraphTypeEnum vGraphType,  //
+    bool DrawFlamGraph(InAppGpuGraphTypeEnum vGraphType,  //
         IAGPQueryZoneWeak& vOutSelectedQuery,               //
         IAGPQueryZoneWeak vParent = {},                     //
         uint32_t vDepth = 0);
@@ -241,7 +247,7 @@ private:
     bool m_DrawCircularFlameGraph(IAGPQueryZonePtr vRoot, IAGPQueryZoneWeak& vOutSelectedQuery, IAGPQueryZoneWeak vParent, uint32_t vDepth);
 };
 
-class LUMO_BACKEND_API vkInAppGpuContext {
+class IN_APP_GPU_PROFILER_API InAppGpuContext {
 private:
     IAGPContextWeak m_This;
     IAGP_GPU_CONTEXT m_Context;
@@ -268,7 +274,7 @@ public:
     static IAGPContextPtr create(IAGP_GPU_CONTEXT vContext);
 
 public:
-    vkInAppGpuContext(IAGP_GPU_CONTEXT vContext);
+    InAppGpuContext(IAGP_GPU_CONTEXT vContext);
     void Clear();
     void Unit();
 #ifdef VULKAN_PROFILING
@@ -281,36 +287,55 @@ public:
         VkCommandBuffer vResetQueryPoolCmd
 #endif
     );
-    void DrawFlamGraph(const vkInAppGpuGraphTypeEnum& vGraphType);
+    void DrawFlamGraph(const InAppGpuGraphTypeEnum& vGraphType);
     void DrawDetails();
     IAGPQueryZonePtr GetQueryZoneForName(const void* vPtr, const std::string& vName, const std::string& vSection = "", const bool& vIsRoot = false);
+
+    bool BeginMarkTime(
+#ifdef VULKAN_PROFILING
+        const VkCommandBuffer& vCmd,
+#endif
+        InAppGpuQueryZone* vQueryPtr
+    );
+    void EndMarkTime(
+#ifdef VULKAN_PROFILING
+    const VkCommandBuffer& vCmd,
+#endif
+        InAppGpuQueryZone* vQueryPtr
+    );
 
 private:
     void m_SetQueryZoneForDepth(IAGPQueryZonePtr vQueryZone, uint32_t vDepth);
     IAGPQueryZonePtr m_GetQueryZoneFromDepth(uint32_t vDepth);
 };
 
-class LUMO_BACKEND_API vkInAppGpuScopedZone {
+class IN_APP_GPU_PROFILER_API InAppGpuScopedZone {
 public:
     static uint32_t sCurrentDepth;  // current depth catched by Profiler
     static uint32_t sMaxDepth;      // max depth catched ever
 
 public:
+    IAGPContextPtr contextPtr = nullptr;
     IAGPQueryZonePtr queryPtr = nullptr;
+    VkCommandBuffer commandBuffer = nullptr;
 
 public:
-    vkInAppGpuScopedZone(             //
+    InAppGpuScopedZone(             //
+#ifdef VULKAN_PROFILING
         const VkCommandBuffer& vCmd,  //
+#endif
         const bool& vIsRoot,          //
+#ifdef VULKAN_PROFILING
         void* vContextPtr,            //
+#endif
         const void* vPtr,             //
         const std::string& vSection,  //
         const char* fmt,              //
         ...);                         //
-    ~vkInAppGpuScopedZone();
+    ~InAppGpuScopedZone();
 };
 
-class LUMO_BACKEND_API vkInAppGpuProfiler {
+class IN_APP_GPU_PROFILER_API InAppGpuProfiler {
 public:
     typedef std::function<bool(const char*, bool*, ImGuiWindowFlags)> ImGuiBeginFunctor;
     typedef std::function<void()> ImGuiEndFunctor;
@@ -321,7 +346,7 @@ public:
 
 private:
     std::unordered_map<intptr_t, IAGPContextPtr> m_Contexts;
-    vkInAppGpuGraphTypeEnum m_GraphType = vkInAppGpuGraphTypeEnum::IN_APP_GPU_HORIZONTAL;
+    InAppGpuGraphTypeEnum m_GraphType = InAppGpuGraphTypeEnum::IN_APP_GPU_HORIZONTAL;
     IAGPQueryZoneWeak m_SelectedQuery;
     int32_t m_QueryZoneToClose = -1;
     ImGuiBeginFunctor m_ImGuiBeginFunctor =                                     //
@@ -333,7 +358,9 @@ private:
     bool m_IsLoaded = false;
 
 public:
+#ifdef VULKAN_PROFILING
     bool addContext(void* vContextPtr, VkPhysicalDevice vPhysicalDevice, VkDevice vLogicalDevice, const uint32_t& vMaxQueryCount);
+#endif
     void Destroy();
     void Collect(
 #ifdef VULKAN_PROFILING
@@ -341,7 +368,7 @@ public:
 #endif
     );
     IAGPContextPtr GetContextPtr(IAGP_GPU_CONTEXT vContext);
-    vkInAppGpuGraphTypeEnum& GetGraphTypeRef() {
+    InAppGpuGraphTypeEnum& GetGraphTypeRef() {
         return m_GraphType;
     }
 
@@ -358,16 +385,16 @@ private:
     void m_DrawMenuBar();
 
 public:
-    static vkInAppGpuProfiler* Instance() {
-        static vkInAppGpuProfiler _instance;
+    static InAppGpuProfiler* Instance() {
+        static InAppGpuProfiler _instance;
         return &_instance;
     }
 
 protected:
-    vkInAppGpuProfiler();
-    vkInAppGpuProfiler(const vkInAppGpuProfiler&);
-    vkInAppGpuProfiler& operator=(const vkInAppGpuProfiler&);
-    ~vkInAppGpuProfiler();
+    InAppGpuProfiler();
+    InAppGpuProfiler(const InAppGpuProfiler&);
+    InAppGpuProfiler& operator=(const InAppGpuProfiler&);
+    ~InAppGpuProfiler();
 };
 
 }  // namespace iagp

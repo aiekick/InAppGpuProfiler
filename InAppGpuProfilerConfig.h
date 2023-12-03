@@ -6,6 +6,10 @@
 // https://github.com/aiekick/InAppGpuProfiler/tree/DemoApp ////
 ////////////////////////////////////////////////////////////////
 
+// uncomment for your 3d backend
+// #define VULKAN_PROFILING
+// #define OPENGl_PROFILING
+
 // you need also to put your opengl laoder here
 // without that you will have many linker error
 // ex #include <glald/glad.h>

@@ -25,7 +25,7 @@ SOFTWARE.
 // This is an independent m_oject of an individual developer. Dear PVS-Studio, please check it.
 // PVS-Studio Static Code Analyzer for C, C++ and C#: http://www.viva64.com
 
-#include <LumoBackend/Profiler/vkInAppGpuProfiler.h>
+#include "InAppGpuProfiler.h"
 
 #include <cstdarg> /* va_list, va_start, va_arg, va_end */
 #include <cmath>
@@ -47,9 +47,42 @@ SOFTWARE.
 #define IAGP_GPU_CONTEXT void*
 #endif  // GPU_CONTEXT
 
-#include <ctools/Logger.h>
-#include <Gaia/gaia.h>
-#include <Gaia/Core/VulkanCore.h>
+#ifndef IAGP_GET_CURRENT_CONTEXT
+#ifdef OPENGL_PROFILING
+static IAGP_GPU_CONTEXT GetCurrentContext() {
+    DEBUG_BREAK;  // you need to create your own function for get the opengl context
+    return nullptr;
+}
+#define IAGP_GET_CURRENT_CONTEXT GetCurrentContext
+#else
+#define IAGP_GET_CURRENT_CONTEXT
+#endif
+#endif  // GET_CURRENT_CONTEXT
+
+#ifndef IAGP_SET_CURRENT_CONTEXT
+#ifdef OPENGL_PROFILING
+static void SetCurrentContext(GPU_CONTEXT vContextPtr) {
+    DEBUG_BREAK;  // you need to create your own function for get the opengl context
+}
+#define IAGP_SET_CURRENT_CONTEXT SetCurrentContext
+#else
+#define IAGP_SET_CURRENT_CONTEXT
+#endif
+#endif  // GET_CURRENT_CONTEXT
+
+#ifndef IAGP_LOG_ERROR_MESSAGE
+static void LogError(const char* fmt, ...) {
+    DEBUG_BREAK;  // you need to define your own function for get error messages
+}
+#define IAGP_LOG_ERROR_MESSAGE LogError
+#endif  // LOG_ERROR_MESSAGE
+
+#ifndef IAGP_LOG_DEBUG_ERROR_MESSAGE
+static void LogDebugError(const char* fmt, ...) {
+    DEBUG_BREAK;  // you need to define your own function for get error messages in debug
+}
+#define IAGP_LOG_DEBUG_ERROR_MESSAGE LogDebugError
+#endif  // LOG_DEBUG_ERROR_MESSAGE
 
 #ifndef IAGP_IMGUI_BUTTON
 #define IAGP_IMGUI_BUTTON ImGui ::Button
@@ -92,10 +125,28 @@ static bool PlayPauseButton(bool& vPlayPause) {
 
 namespace iagp {
 
-void checkErrors(const char* vFile, const char* vFunc, const int& vLine) {
+#ifdef OPENGL_PROFILING
+void checkGLErrors(const char* vFile, const char* vFunc, const int& vLine) {
+#ifdef _DEBUG
+    const GLenum err(glGetError());
+    if (err != GL_NO_ERROR) {
+        std::string error;
+        switch (err) {
+            case GL_INVALID_OPERATION: error = "INVALID_OPERATION"; break;
+            case GL_INVALID_ENUM: error = "INVALID_ENUM"; break;
+            case GL_INVALID_VALUE: error = "INVALID_VALUE"; break;
+            case GL_OUT_OF_MEMORY: error = "OUT_OF_MEMORY"; break;
+            case GL_INVALID_FRAMEBUFFER_OPERATION: error = "INVALID_FRAMEBUFFER_OPERATION"; break;
+            case GL_STACK_UNDERFLOW: error = "GL_STACK_UNDERFLOW"; break;
+            case GL_STACK_OVERFLOW: error = "GL_STACK_OVERFLOW"; break;
+        }
+        printf("[%s][%s][%i] GL Errors : %s\n", vFile, vFunc, vLine, error.c_str());
+        //DEBUG_BREAK;
+    }
+#endif
 }
-
-#define CheckErrors checkErrors(__FILE__, __FUNCTION__, __LINE__)
+#define CheckGLErrors checkGLErrors(__FILE__, __FUNCTION__, __LINE__)
+#endif  // OPENGL_PROFILING
 
 // contrast from 1 to 21
 // https://www.w3.org/TR/WCAG20/#relativeluminancedef
@@ -141,20 +192,20 @@ static std::string toStr(const char* fmt, ...) {
 /////////////////////// QUERY ZONE /////////////////////////
 ////////////////////////////////////////////////////////////
 
-uint32_t vkInAppGpuQueryZone::sMaxDepthToOpen = 100U;  // the max by default
-bool vkInAppGpuQueryZone::sShowLeafMode = false;
-float vkInAppGpuQueryZone::sContrastRatio = 4.3f;
-bool vkInAppGpuQueryZone::sActivateLogger = false;
-std::vector<IAGPQueryZoneWeak> vkInAppGpuQueryZone::sTabbedQueryZones = {};
-IAGPQueryZonePtr vkInAppGpuQueryZone::create(
+uint32_t InAppGpuQueryZone::sMaxDepthToOpen = 100U;  // the max by default
+bool InAppGpuQueryZone::sShowLeafMode = false;
+float InAppGpuQueryZone::sContrastRatio = 4.3f;
+bool InAppGpuQueryZone::sActivateLogger = false;
+std::vector<IAGPQueryZoneWeak> InAppGpuQueryZone::sTabbedQueryZones = {};
+IAGPQueryZonePtr InAppGpuQueryZone::create(
     IAGP_GPU_CONTEXT vContext, const void* vPtr, const std::string& vName, const std::string& vSectionName, const bool& vIsRoot) {
-    auto res = std::make_shared<vkInAppGpuQueryZone>(vContext, vPtr, vName, vSectionName, vIsRoot);
+    auto res = std::make_shared<InAppGpuQueryZone>(vContext, vPtr, vName, vSectionName, vIsRoot);
     res->m_This = res;
     return res;
 }
-vkInAppGpuQueryZone::circularSettings vkInAppGpuQueryZone::sCircularSettings;
+InAppGpuQueryZone::circularSettings InAppGpuQueryZone::sCircularSettings;
 
-vkInAppGpuQueryZone::vkInAppGpuQueryZone(
+InAppGpuQueryZone::InAppGpuQueryZone(
     IAGP_GPU_CONTEXT vContext, const void* vPtr, const std::string& vName, const std::string& vSectionName, const bool& vIsRoot)
     : m_Context(vContext), name(vName), m_IsRoot(vIsRoot), m_SectionName(vSectionName), m_Ptr(vPtr) {
     m_StartFrameId = 0;
@@ -162,25 +213,23 @@ vkInAppGpuQueryZone::vkInAppGpuQueryZone(
     m_StartTimeStamp = 0;
     m_EndTimeStamp = 0;
     m_ElapsedTime = 0.0;
-    depth = vkInAppGpuScopedZone::sCurrentDepth;
-    imGuiLabel = vName + "##vkInAppGpuQueryZone_" + std::to_string((intptr_t)this);
-
+    depth = InAppGpuScopedZone::sCurrentDepth;
+    imGuiLabel = vName + "##InAppGpuQueryZone_" + std::to_string((intptr_t)this);
 #ifdef OPENGL_PROFILING
     IAGP_SET_CURRENT_CONTEXT(m_Context);
     CheckErrors;
     glGenQueries(2, ids);
     CheckErrors;
-#endif
-
+#endif // OPENGL_PROFILING
 }
 
-vkInAppGpuQueryZone::~vkInAppGpuQueryZone() {
+InAppGpuQueryZone::~InAppGpuQueryZone() {
 #ifdef OPENGL_PROFILING
     IAGP_SET_CURRENT_CONTEXT(m_Context);
     CheckErrors;
     glDeleteQueries(2, ids);
     CheckErrors;
-#endif
+#endif // OPENGL_PROFILING
     name.clear();
     m_StartFrameId = 0;
     m_EndFrameId = 0;
@@ -191,7 +240,7 @@ vkInAppGpuQueryZone::~vkInAppGpuQueryZone() {
     zonesDico.clear();
 }
 
-void vkInAppGpuQueryZone::Clear() {
+void InAppGpuQueryZone::Clear() {
     m_StartFrameId = 0;
     m_EndFrameId = 0;
     m_StartTimeStamp = 0;
@@ -199,16 +248,18 @@ void vkInAppGpuQueryZone::Clear() {
     m_ElapsedTime = 0.0;
 }
 
-void vkInAppGpuQueryZone::SetStartTimeStamp(const uint64_t& vValue) {
+void InAppGpuQueryZone::SetStartTimeStamp(const uint64_t& vValue) {
     m_StartTimeStamp = vValue;
     ++m_StartFrameId;
 }
 
-void vkInAppGpuQueryZone::SetEndTimeStamp(const uint64_t& vValue) {
+void InAppGpuQueryZone::SetEndTimeStamp(const uint64_t& vValue) {
     m_EndTimeStamp = vValue;
     ++m_EndFrameId;
 
-    printf("%*s end id retrieved : %u\n", depth, "", ids[1]);
+#ifdef IAGP_DEBUG_MODE_LOGGING
+    IAGP_DEBUG_MODE_LOGGING("%*s end id retrieved : %u", depth, "", ids[1]);
+#endif
 
     // start computation of elapsed time
     // no needed after
@@ -216,7 +267,7 @@ void vkInAppGpuQueryZone::SetEndTimeStamp(const uint64_t& vValue) {
     // so DrawMetricGraph must be the first
     ComputeElapsedTime();
 
-    if (vkInAppGpuQueryZone::sActivateLogger && zonesOrdered.empty())  // only the leafs
+    if (InAppGpuQueryZone::sActivateLogger && zonesOrdered.empty())  // only the leafs
     {
         /*double v = (double)vValue / 1e9;
         LogVarLightInfo("<profiler section=\"%s\" epoch_time=\"%f\" name=\"%s\" render_time_ms=\"%f\">",
@@ -224,7 +275,7 @@ void vkInAppGpuQueryZone::SetEndTimeStamp(const uint64_t& vValue) {
     }
 }
 
-void vkInAppGpuQueryZone::ComputeElapsedTime() {
+void InAppGpuQueryZone::ComputeElapsedTime() {
     // we take the last frame
     if (m_StartFrameId == m_EndFrameId) {
         m_AverageStartValue.AddValue(m_StartTimeStamp);  // ns to ms
@@ -235,7 +286,7 @@ void vkInAppGpuQueryZone::ComputeElapsedTime() {
     }
 }
 
-void vkInAppGpuQueryZone::DrawDetails() {
+void InAppGpuQueryZone::DrawDetails() {
     if (m_StartFrameId) {
         bool res = false;
 
@@ -260,7 +311,7 @@ void vkInAppGpuQueryZone::DrawDetails() {
         }
 
         const auto colorU32 = ImGui::ColorConvertFloat4ToU32(cv4);
-        const bool pushed = PushStyleColorWithContrast(colorU32, ImGuiCol_Text, ImVec4(0, 0, 0, 1), vkInAppGpuQueryZone::sContrastRatio);
+        const bool pushed = PushStyleColorWithContrast(colorU32, ImGuiCol_Text, ImVec4(0, 0, 0, 1), InAppGpuQueryZone::sContrastRatio);
 
         ImGui::PushStyleColor(ImGuiCol_Header, cv4);
         const auto hovered_color = ImVec4(cv4.x * 0.9f, cv4.y * 0.9f, cv4.z * 0.9f, 1.0f);
@@ -290,6 +341,7 @@ void vkInAppGpuQueryZone::DrawDetails() {
         ImGui::TableNextColumn();  // Elapsed time
         ImGui::Text("%u", last_count);
 #endif
+
         ImGui::TableNextColumn();  // Elapsed time
         ImGui::Text("%.5f ms", m_ElapsedTime);
         ImGui::TableNextColumn();  // Max fps
@@ -318,8 +370,8 @@ void vkInAppGpuQueryZone::DrawDetails() {
     }
 }
 
-bool vkInAppGpuQueryZone::DrawFlamGraph(
-    vkInAppGpuGraphTypeEnum vGraphType, IAGPQueryZoneWeak& vOutSelectedQuery, IAGPQueryZoneWeak vParent, uint32_t vDepth) {
+bool InAppGpuQueryZone::DrawFlamGraph(
+    InAppGpuGraphTypeEnum vGraphType, IAGPQueryZoneWeak& vOutSelectedQuery, IAGPQueryZoneWeak vParent, uint32_t vDepth) {
     ImGuiWindow* window = ImGui::GetCurrentWindow();
     if (window->SkipItems) {
         return false;
@@ -327,17 +379,17 @@ bool vkInAppGpuQueryZone::DrawFlamGraph(
 
     bool pressed = false;
     switch (vGraphType) {
-        case vkInAppGpuGraphTypeEnum::IN_APP_GPU_HORIZONTAL:  // horizontal flame graph (standard and legacy)
+        case InAppGpuGraphTypeEnum::IN_APP_GPU_HORIZONTAL:  // horizontal flame graph (standard and legacy)
             pressed = m_DrawHorizontalFlameGraph(m_This.lock(), vOutSelectedQuery, vParent, vDepth);
             break;
-        case vkInAppGpuGraphTypeEnum::IN_APP_GPU_CIRCULAR:  // circular flame graph
+        case InAppGpuGraphTypeEnum::IN_APP_GPU_CIRCULAR:  // circular flame graph
             pressed = m_DrawCircularFlameGraph(m_This.lock(), vOutSelectedQuery, vParent, vDepth);
             break;
     }
     return pressed;
 }
 
-void vkInAppGpuQueryZone::UpdateBreadCrumbTrail() {
+void InAppGpuQueryZone::UpdateBreadCrumbTrail() {
     if (parentPtr != nullptr) {
         int32_t _depth = depth;
         IAGPQueryZonePtr _parent_ptr = m_This.lock();
@@ -376,11 +428,11 @@ void vkInAppGpuQueryZone::UpdateBreadCrumbTrail() {
         imGuiTitle += " > " + name;
 
         // add the unicity string
-        imGuiTitle += "##vkInAppGpuQueryZone_ " + std::to_string((intptr_t)this);
+        imGuiTitle += "##InAppGpuQueryZone_ " + std::to_string((intptr_t)this);
     }
 }
 
-void vkInAppGpuQueryZone::DrawBreadCrumbTrail(IAGPQueryZoneWeak& vOutSelectedQuery) {
+void InAppGpuQueryZone::DrawBreadCrumbTrail(IAGPQueryZoneWeak& vOutSelectedQuery) {
     ImGui::PushID("DrawBreadCrumbTrail");
     for (uint32_t idx = 0U; idx < depth; ++idx) {
         if (idx < m_BreadCrumbTrail.size()) {
@@ -410,7 +462,7 @@ void vkInAppGpuQueryZone::DrawBreadCrumbTrail(IAGPQueryZoneWeak& vOutSelectedQue
     ImGui::PopID();
 }
 
-void vkInAppGpuQueryZone::m_DrawList_DrawBar(const char* vLabel, const ImRect& vRect, const ImVec4& vColor, const bool& vHovered) {
+void InAppGpuQueryZone::m_DrawList_DrawBar(const char* vLabel, const ImRect& vRect, const ImVec4& vColor, const bool& vHovered) {
     const ImGuiContext& g = *GImGui;
     ImGuiWindow* window = g.CurrentWindow;
     const ImGuiStyle& style = g.Style;
@@ -425,7 +477,7 @@ void vkInAppGpuQueryZone::m_DrawList_DrawBar(const char* vLabel, const ImRect& v
     }
     ImGui::PopStyleVar();
 
-    const bool pushed = PushStyleColorWithContrast(colorU32, ImGuiCol_Text, ImVec4(0, 0, 0, 1), vkInAppGpuQueryZone::sContrastRatio);
+    const bool pushed = PushStyleColorWithContrast(colorU32, ImGuiCol_Text, ImVec4(0, 0, 0, 1), InAppGpuQueryZone::sContrastRatio);
     ImGui::RenderTextClipped(vRect.Min + style.FramePadding, vRect.Max - style.FramePadding,  //
         vLabel, nullptr, &label_size, ImVec2(0.5f, 0.5f), &vRect);
     if (pushed) {
@@ -433,9 +485,9 @@ void vkInAppGpuQueryZone::m_DrawList_DrawBar(const char* vLabel, const ImRect& v
     }
 }
 
-bool vkInAppGpuQueryZone::m_ComputeRatios(
+bool InAppGpuQueryZone::m_ComputeRatios(
     IAGPQueryZonePtr vRoot, IAGPQueryZoneWeak vParent, uint32_t vDepth, float& vOutStartRatio, float& vOutSizeRatio) {
-    if (depth > vkInAppGpuQueryZone::sMaxDepthToOpen) {
+    if (depth > InAppGpuQueryZone::sMaxDepthToOpen) {
         return false;
     }
     if (vRoot == nullptr) {
@@ -493,7 +545,7 @@ bool vkInAppGpuQueryZone::m_ComputeRatios(
     return false;
 }
 
-bool vkInAppGpuQueryZone::m_DrawHorizontalFlameGraph(
+bool InAppGpuQueryZone::m_DrawHorizontalFlameGraph(
     IAGPQueryZonePtr vRoot, IAGPQueryZoneWeak& vOutSelectedQuery, IAGPQueryZoneWeak vParent, uint32_t vDepth) {
     bool pressed = false;
     const ImGuiContext& g = *GImGui;
@@ -504,7 +556,7 @@ bool vkInAppGpuQueryZone::m_DrawHorizontalFlameGraph(
     float barSizeRatio = 0.0f;
     if (m_ComputeRatios(vRoot, vParent, vDepth, barStartRatio, barSizeRatio)) {
         if (barSizeRatio > 0.0f) {
-            if ((zonesOrdered.empty() && vkInAppGpuQueryZone::sShowLeafMode) || !vkInAppGpuQueryZone::sShowLeafMode) {
+            if ((zonesOrdered.empty() && InAppGpuQueryZone::sShowLeafMode) || !InAppGpuQueryZone::sShowLeafMode) {
                 ImGui::PushID(this);
                 m_BarLabel = toStr("%s (%.2f ms | %.2f f/s)", name.c_str(), m_ElapsedTime, 1000.0f / m_ElapsedTime);
                 const char* label = m_BarLabel.c_str();
@@ -551,15 +603,15 @@ bool vkInAppGpuQueryZone::m_DrawHorizontalFlameGraph(
                 }
             }
         } else {
-#ifdef printf
-            printf("Bar Ms not displayed", name.c_str());
+#ifdef IAGP_DEBUG_MODE_LOGGING
+            IAGP_DEBUG_MODE_LOGGING("Bar Ms not displayed", name.c_str());
 #endif
         }
     }
 
-    if (depth == 0 && ((zonesOrdered.empty() && vkInAppGpuQueryZone::sShowLeafMode) || !vkInAppGpuQueryZone::sShowLeafMode)) {
+    if (depth == 0 && ((zonesOrdered.empty() && InAppGpuQueryZone::sShowLeafMode) || !InAppGpuQueryZone::sShowLeafMode)) {
         const ImVec2 pos = window->DC.CursorPos;
-        const ImVec2 size = ImVec2(aw, ImGui::GetFrameHeight() * (vkInAppGpuScopedZone::sMaxDepth + 1U));
+        const ImVec2 size = ImVec2(aw, ImGui::GetFrameHeight() * (InAppGpuScopedZone::sMaxDepth + 1U));
         ImGui::ItemSize(size);
         const ImRect bb(pos, pos + size);
         const ImGuiID id = window->GetID((name + "##canvas").c_str());
@@ -571,7 +623,7 @@ bool vkInAppGpuQueryZone::m_DrawHorizontalFlameGraph(
     return pressed;
 }
 
-bool vkInAppGpuQueryZone::m_DrawCircularFlameGraph(
+bool InAppGpuQueryZone::m_DrawCircularFlameGraph(
     IAGPQueryZonePtr vRoot, IAGPQueryZoneWeak& vOutSelectedQuery, IAGPQueryZoneWeak vParent, uint32_t vDepth) {
     bool pressed = false;
 
@@ -593,7 +645,7 @@ bool vkInAppGpuQueryZone::m_DrawCircularFlameGraph(
     float barSizeRatio = 0.0f;
     if (m_ComputeRatios(vRoot, vParent, vDepth, barStartRatio, barSizeRatio)) {
         if (barSizeRatio > 0.0f) {
-            if ((zonesOrdered.empty() && vkInAppGpuQueryZone::sShowLeafMode) || !vkInAppGpuQueryZone::sShowLeafMode) {
+            if ((zonesOrdered.empty() && InAppGpuQueryZone::sShowLeafMode) || !InAppGpuQueryZone::sShowLeafMode) {
                 ImVec2 center = window->DC.CursorPos + ImGui::GetContentRegionAvail() * 0.5f;
                 ImGui::ColorConvertHSVtoRGB(hsv.x, hsv.y, hsv.z, cv4.x, cv4.y, cv4.z);
                 cv4.w = 1.0f;
@@ -662,30 +714,33 @@ bool vkInAppGpuQueryZone::m_DrawCircularFlameGraph(
 /////////////////////// 3D CONTEXT /////////////////////////
 ////////////////////////////////////////////////////////////
 
-IAGPContextPtr vkInAppGpuContext::create(IAGP_GPU_CONTEXT vContext) {
-    auto res = std::make_shared<vkInAppGpuContext>(vContext);
+IAGPContextPtr InAppGpuContext::create(IAGP_GPU_CONTEXT vContext) {
+    auto res = std::make_shared<InAppGpuContext>(vContext);
     res->m_This = res;
     return res;
 }
 
-vkInAppGpuContext::vkInAppGpuContext(IAGP_GPU_CONTEXT vContext) : m_Context(vContext) {
+InAppGpuContext::InAppGpuContext(IAGP_GPU_CONTEXT vContext) : m_Context(vContext) {
 
 }
 
-void vkInAppGpuContext::Clear() {
+void InAppGpuContext::Clear() {
     m_RootZone.reset();
 #ifdef OPENGl_PROFILING
     m_PendingUpdate.clear();
 #endif
     m_QueryIDToZone.clear();
     m_DepthToLastZone.clear();
+#ifdef VULKAN_PROFILING
     m_TimeStampMeasures.clear();
+#endif
 }
 
 #ifdef VULKAN_PROFILING
-bool vkInAppGpuContext::Init(VkPhysicalDevice vPhysicalDevice, VkDevice vLogicalDevice, const uint32_t& vMaxQueryCount) {
+bool InAppGpuContext::Init(VkPhysicalDevice vPhysicalDevice, VkDevice vLogicalDevice, const uint32_t& vMaxQueryCount) {
     m_PhysicalDevice = vPhysicalDevice;
     m_LogicalDevice = vLogicalDevice;
+    m_DispatchLoaderPtr = vDispatchLoaderPtr;
 
     VkPhysicalDeviceProperties props;
     VULKAN_HPP_DEFAULT_DISPATCHER.vkGetPhysicalDeviceProperties(m_PhysicalDevice, &props);
@@ -711,7 +766,7 @@ bool vkInAppGpuContext::Init(VkPhysicalDevice vPhysicalDevice, VkDevice vLogical
 }
 #endif
 
-void vkInAppGpuContext::Unit() {
+void InAppGpuContext::Unit() {
     Clear();
 #ifdef VULKAN_PROFILING
     VULKAN_HPP_DEFAULT_DISPATCHER.vkDeviceWaitIdle(m_LogicalDevice);
@@ -719,12 +774,14 @@ void vkInAppGpuContext::Unit() {
 #endif
 }
 
-void vkInAppGpuContext::Collect(
+void InAppGpuContext::Collect(
 #ifdef VULKAN_PROFILING
     VkCommandBuffer vCmd
 #endif
 ) {
-    printf("------ Collect Thread (%u) -----\n", (uint32_t)(intptr_t)m_Context);
+#ifdef IAGP_DEBUG_MODE_LOGGING
+    IAGP_DEBUG_MODE_LOGGING("------ Collect Trhead (%u) -----", (uint32_t)(intptr_t)m_Context);
+#endif
 
 #ifdef VULKAN_PROFILING
     if (!m_TimeStampMeasures.empty() && 
@@ -786,16 +843,18 @@ void vkInAppGpuContext::Collect(
         } else {
             auto ptr = m_QueryIDToZone[id];
             if (ptr != nullptr) {
-                printf("%*s id not retrieved : %u", ptr->depth, "", id);
+                IAGP_LOG_ERROR_MESSAGE("%*s id not retrieved : %u", ptr->depth, "", id);
             }
         }
     }
 #endif
 
-    printf("------ End Frame -----\n");
+#ifdef IAGP_DEBUG_MODE_LOGGING
+    IAGP_DEBUG_MODE_LOGGING("------ End Frame -----");
+#endif
 }
 
-void vkInAppGpuContext::DrawFlamGraph(const vkInAppGpuGraphTypeEnum& vGraphType) {
+void InAppGpuContext::DrawFlamGraph(const InAppGpuGraphTypeEnum& vGraphType) {
     if (m_RootZone != nullptr) {
         if (!m_SelectedQuery.expired()) {
             auto ptr = m_SelectedQuery.lock();
@@ -809,46 +868,47 @@ void vkInAppGpuContext::DrawFlamGraph(const vkInAppGpuGraphTypeEnum& vGraphType)
     }
 }
 
-void vkInAppGpuContext::DrawDetails() {
+void InAppGpuContext::DrawDetails() {
     if (m_RootZone != nullptr) {
         m_RootZone->DrawDetails();
     }
 }
 
-IAGPQueryZonePtr vkInAppGpuContext::GetQueryZoneForName(
+IAGPQueryZonePtr InAppGpuContext::GetQueryZoneForName(
     const void* vPtr, const std::string& vName, const std::string& vSection, const bool& vIsRoot) {
     IAGPQueryZonePtr res = nullptr;
 
     //////////////// CREATION ///////////////////
 
     // there is many link issues with 'max' in cross compilation so we dont using it
-    if (vkInAppGpuScopedZone::sCurrentDepth > vkInAppGpuScopedZone::sMaxDepth) {
-        vkInAppGpuScopedZone::sMaxDepth = vkInAppGpuScopedZone::sCurrentDepth;
+    if (InAppGpuScopedZone::sCurrentDepth > InAppGpuScopedZone::sMaxDepth) {
+        InAppGpuScopedZone::sMaxDepth = InAppGpuScopedZone::sCurrentDepth;
     }
 
-    if (vkInAppGpuScopedZone::sCurrentDepth == 0) {  // root zone
+    if (InAppGpuScopedZone::sCurrentDepth == 0) {  // root zone
         printf("------ Start Frame -----\n");
         m_DepthToLastZone.clear();
         if (m_RootZone == nullptr) {
-            res = vkInAppGpuQueryZone::create(m_Context, vPtr, vName, vSection, vIsRoot);
+            res = InAppGpuQueryZone::create(m_Context, vPtr, vName, vSection, vIsRoot);
             if (res != nullptr) {
 #ifdef VULKAN_PROFILING
                 res->ids[0] = GetNextQueryId();
                 res->ids[1] = GetNextQueryId();
 #endif
-                res->depth = vkInAppGpuScopedZone::sCurrentDepth;
+                res->depth = InAppGpuScopedZone::sCurrentDepth;
                 res->UpdateBreadCrumbTrail();
                 m_QueryIDToZone[res->ids[0]] = res;
                 m_QueryIDToZone[res->ids[1]] = res;
                 m_RootZone = res;
-
-                // printf("Profile : add zone %s at puDepth %u", vName.c_str(), vkInAppGpuScopedZone::sCurrentDepth);
+#ifdef IAGP_DEBUG_MODE_LOGGING
+                // IAGP_DEBUG_MODE_LOGGING("Profile : add zone %s at puDepth %u", vName.c_str(), InAppGpuScopedZone::sCurrentDepth);
+#endif
             }
         } else {
             res = m_RootZone;
         }
     } else {  // else child zone
-        auto root = m_GetQueryZoneFromDepth(vkInAppGpuScopedZone::sCurrentDepth - 1U);
+        auto root = m_GetQueryZoneFromDepth(InAppGpuScopedZone::sCurrentDepth - 1U);
         if (root != nullptr) {
             bool found = false;
             const auto& key_str = vSection + vName;
@@ -859,7 +919,7 @@ IAGPQueryZonePtr vkInAppGpuContext::GetQueryZoneForName(
                 found = (ptr_iter->second.find(key_str) != ptr_iter->second.end());  // not found
             }
             if (!found) {  // not found
-                res = vkInAppGpuQueryZone::create(m_Context, vPtr, vName, vSection, vIsRoot);
+                res = InAppGpuQueryZone::create(m_Context, vPtr, vName, vSection, vIsRoot);
                 if (res != nullptr) {
 #ifdef VULKAN_PROFILING
                     res->ids[0] = GetNextQueryId();
@@ -867,13 +927,15 @@ IAGPQueryZonePtr vkInAppGpuContext::GetQueryZoneForName(
 #endif
                     res->parentPtr = root;
                     res->rootPtr = m_RootZone;
-                    res->depth = vkInAppGpuScopedZone::sCurrentDepth;
+                    res->depth = InAppGpuScopedZone::sCurrentDepth;
                     res->UpdateBreadCrumbTrail();
                     m_QueryIDToZone[res->ids[0]] = res;
                     m_QueryIDToZone[res->ids[1]] = res;
                     root->zonesDico[vPtr][key_str] = res;
                     root->zonesOrdered.push_back(res);
-                    // printf("Profile : add zone %s at puDepth %u", vName.c_str(), vkInAppGpuScopedZone::sCurrentDepth);
+#ifdef IAGP_DEBUG_MODE_LOGGING
+                    // IAGP_DEBUG_MODE_LOGGING("Profile : add zone %s at puDepth %u", vName.c_str(), InAppGpuScopedZone::sCurrentDepth);
+#endif
                 } else {
                     DEBUG_BREAK;
                 }
@@ -888,11 +950,11 @@ IAGPQueryZonePtr vkInAppGpuContext::GetQueryZoneForName(
     //////////////// UTILISATION ////////////////
 
     if (res != nullptr) {
-        m_SetQueryZoneForDepth(res, vkInAppGpuScopedZone::sCurrentDepth);
+        m_SetQueryZoneForDepth(res, InAppGpuScopedZone::sCurrentDepth);
         if (res->name != vName) {
             // at depth 0 there is only one frame
-            printf("was registerd at depth %u %s. but we got %s\nwe clear the profiler",  //
-                vkInAppGpuScopedZone::sCurrentDepth, res->name.c_str(), vName.c_str());
+            IAGP_LOG_DEBUG_ERROR_MESSAGE("was registerd at depth %u %s. but we got %s\nwe clear the profiler",  //
+                InAppGpuScopedZone::sCurrentDepth, res->name.c_str(), vName.c_str());
             // maybe the scoped frame is taken outside of the main frame
             Clear();
         }
@@ -905,11 +967,43 @@ IAGPQueryZonePtr vkInAppGpuContext::GetQueryZoneForName(
     return res;
 }
 
-void vkInAppGpuContext::m_SetQueryZoneForDepth(IAGPQueryZonePtr vvkInAppGpuQueryZone, uint32_t vDepth) {
-    m_DepthToLastZone[vDepth] = vvkInAppGpuQueryZone;
+bool InAppGpuContext::BeginMarkTime(
+#ifdef VULKAN_PROFILING
+    const VkCommandBuffer& vCmd, 
+#endif
+    InAppGpuQueryZone* vQueryPtr) {
+    assert(vQueryPtr != nullptr);
+#ifdef VULKAN_PROFILING
+    VULKAN_HPP_DEFAULT_DISPATCHER.vkCmdWriteTimestamp(vCmd, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, m_QueryPool, vQueryPtr->ids[0]);
+#endif
+#ifdef OPENGL_PROFILING
+    glQueryCounter(vQueryPtr->ids[0], GL_TIMESTAMP);
+#endif
+#ifdef IAGP_DEBUG_MODE_LOGGING
+    IAGP_DEBUG_MODE_LOGGING("%*s begin : [%u:%u] (depth:%u) (%s)",  //
+        vQueryPtr->depth, "", vQueryPtr->ids[0], vQueryPtr->ids[1], vQueryPtr->depth, label.c_str());
+#endif
 }
 
-IAGPQueryZonePtr vkInAppGpuContext::m_GetQueryZoneFromDepth(uint32_t vDepth) {
+void InAppGpuContext::EndMarkTime(
+#ifdef VULKAN_PROFILING
+    const VkCommandBuffer& vCmd,
+#endif 
+    InAppGpuQueryZone* vQueryPtr) {
+    assert(vQueryPtr != nullptr);
+#ifdef VULKAN_PROFILING
+    VULKAN_HPP_DEFAULT_DISPATCHER.vkCmdWriteTimestamp(vCmd, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, m_QueryPool, vQueryPtr->ids[1]);
+#endif
+#ifdef OPENGL_PROFILING
+    glQueryCounter(vQueryPtr->ids[1], GL_TIMESTAMP);
+#endif
+}
+
+void InAppGpuContext::m_SetQueryZoneForDepth(IAGPQueryZonePtr vInAppGpuQueryZone, uint32_t vDepth) {
+    m_DepthToLastZone[vDepth] = vInAppGpuQueryZone;
+}
+
+IAGPQueryZonePtr InAppGpuContext::m_GetQueryZoneFromDepth(uint32_t vDepth) {
     IAGPQueryZonePtr res = nullptr;
 
     if (m_DepthToLastZone.find(vDepth) != m_DepthToLastZone.end()) {  // found
@@ -920,7 +1014,7 @@ IAGPQueryZonePtr vkInAppGpuContext::m_GetQueryZoneFromDepth(uint32_t vDepth) {
 }
 
 #ifdef VULKAN_PROFILING
-int32_t vkInAppGpuContext::GetNextQueryId() {
+int32_t InAppGpuContext::GetNextQueryId() {
     const auto id = m_QueryHead;
     m_QueryHead = (m_QueryHead + 1) % m_QueryCount;
     assert(m_QueryHead != m_QueryTail);
@@ -928,7 +1022,7 @@ int32_t vkInAppGpuContext::GetNextQueryId() {
     return (uint32_t)id;
 }
 
-VkQueryPool vkInAppGpuContext::GetQueryPool() {
+VkQueryPool InAppGpuContext::GetQueryPool() {
     return m_QueryPool;
 }
 #endif
@@ -938,38 +1032,46 @@ VkQueryPool vkInAppGpuContext::GetQueryPool() {
 ////////////////////////////////////////////////////////////
 
 // STATIC
-uint32_t vkInAppGpuScopedZone::sCurrentDepth = 0U;
-uint32_t vkInAppGpuScopedZone::sMaxDepth = 0U;
+uint32_t InAppGpuScopedZone::sCurrentDepth = 0U;
+uint32_t InAppGpuScopedZone::sMaxDepth = 0U;
 
 // SCOPED ZONE
-vkInAppGpuScopedZone::vkInAppGpuScopedZone(  //
+InAppGpuScopedZone::InAppGpuScopedZone(  //
+#ifdef VULKAN_PROFILING
     const VkCommandBuffer& vCmd,             //
+#endif
     const bool& vIsRoot,                     //
+#ifdef VULKAN_PROFILING
     void* vContextPtr,                       //
+#endif
     const void* vPtr,                        //
     const std::string& vSection,             //
     const char* fmt,                         //
     ...) {                                   //
-    if (vkInAppGpuProfiler::sIsActive) {
+    if (InAppGpuProfiler::sIsActive) {
         va_list args;
         va_start(args, fmt);
         static char TempBuffer[256];
         const int w = vsnprintf(TempBuffer, 256, fmt, args);
         va_end(args);
         if (w) {
-            auto context_ptr = vkInAppGpuProfiler::Instance()->GetContextPtr(vContextPtr);
-            if (context_ptr != nullptr) {
-                const auto& label = std::string(TempBuffer, (size_t)w);
-                queryPtr = context_ptr->GetQueryZoneForName(vPtr, label, vSection, vIsRoot);
-                if (queryPtr != nullptr) {
 #ifdef VULKAN_PROFILING
-                    queryPtr->commandBuffer = vCmd;
-                    queryPtr->queryPool = context_ptr->GetQueryPool();
-                    VULKAN_HPP_DEFAULT_DISPATCHER.vkCmdWriteTimestamp(
-                        queryPtr->commandBuffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, queryPtr->queryPool, queryPtr->ids[0]);
+            contextPtr = InAppGpuProfiler::Instance()->GetContextPtr(vContextPtr);
 #endif
-                    printf("%*s begin : [%u:%u] (depth:%u) (%s)",  //
-                        queryPtr->depth, "", queryPtr->ids[0], queryPtr->ids[1], queryPtr->depth, label.c_str());
+#ifdef OPENGL_PROFILING
+            contextPtr = InAppGpuProfiler::Instance()->GetContextPtr(IAGP_GET_CURRENT_CONTEXT());
+#endif
+            if (contextPtr != nullptr) {
+                const auto& label = std::string(TempBuffer, (size_t)w);
+                queryPtr = contextPtr->GetQueryZoneForName(vPtr, label, vSection, vIsRoot);
+                if (queryPtr != nullptr) {
+                    commandBuffer = vCmd;
+#ifdef VULKAN_PROFILING
+                    contextPtr->BeginMarkTime(vCmd, queryPtr.get());
+#endif
+#ifdef OPENGL_PROFILING
+                    contextPtr->BeginMarkTime();
+#endif
                     sCurrentDepth++;
                 }
             }
@@ -977,19 +1079,23 @@ vkInAppGpuScopedZone::vkInAppGpuScopedZone(  //
     }
 }
 
-vkInAppGpuScopedZone::~vkInAppGpuScopedZone() {
-    if (vkInAppGpuProfiler::sIsActive) {
-        if (queryPtr != nullptr) {
+InAppGpuScopedZone::~InAppGpuScopedZone() {
+    if (InAppGpuProfiler::sIsActive) {
+        if (queryPtr != nullptr && contextPtr != nullptr) {
+#ifdef IAGP_DEBUG_MODE_LOGGING
             if (queryPtr->depth > 0) {
-                printf("%*s end : [%u:%u] (depth:%u)",  //
+                IAGP_DEBUG_MODE_LOGGING("%*s end : [%u:%u] (depth:%u)",  //
                     (queryPtr->depth - 1U), "", queryPtr->ids[0], queryPtr->ids[1], queryPtr->depth);
             } else {
-                printf("end : [%u:%u] (depth:%u)",  //
+                IAGP_DEBUG_MODE_LOGGING("end : [%u:%u] (depth:%u)",  //
                     queryPtr->ids[0], queryPtr->ids[1], 0);
             }
+#endif
 #ifdef VULKAN_PROFILING
-            VULKAN_HPP_DEFAULT_DISPATCHER.vkCmdWriteTimestamp(
-                queryPtr->commandBuffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, queryPtr->queryPool, queryPtr->ids[1]);
+            contextPtr->EndMarkTime(commandBuffer, queryPtr.get());
+#endif
+#ifdef OPENGL_PROFILING
+            contextPtr->EndMarkTime();
 #endif
             ++queryPtr->current_count;
             --sCurrentDepth;
@@ -1001,21 +1107,22 @@ vkInAppGpuScopedZone::~vkInAppGpuScopedZone() {
 /////////////////////// 3D PROFILER ////////////////////////
 ////////////////////////////////////////////////////////////
 
-bool vkInAppGpuProfiler::sIsActive = false;
-bool vkInAppGpuProfiler::sIsPaused = false;
+bool InAppGpuProfiler::sIsActive = false;
+bool InAppGpuProfiler::sIsPaused = false;
 
-vkInAppGpuProfiler::vkInAppGpuProfiler() = default;
-vkInAppGpuProfiler::vkInAppGpuProfiler(const vkInAppGpuProfiler&) = default;
+InAppGpuProfiler::InAppGpuProfiler() = default;
+InAppGpuProfiler::InAppGpuProfiler(const InAppGpuProfiler&) = default;
 
-vkInAppGpuProfiler& vkInAppGpuProfiler::operator=(const vkInAppGpuProfiler&) {
+InAppGpuProfiler& InAppGpuProfiler::operator=(const InAppGpuProfiler&) {
     return *this;
 };
 
-vkInAppGpuProfiler::~vkInAppGpuProfiler() {
+InAppGpuProfiler::~InAppGpuProfiler() {
     Destroy();
 };
 
-bool vkInAppGpuProfiler::addContext(void* vContextPtr, VkPhysicalDevice vPhysicalDevice, VkDevice vLogicalDevice, const uint32_t& vMaxQueryCount) {
+#ifdef VULKAN_PROFILING
+bool InAppGpuProfiler::addContext(void* vContextPtr, VkPhysicalDevice vPhysicalDevice, VkDevice vLogicalDevice, const uint32_t& vMaxQueryCount) {
     bool res = false;
     auto ctx_ptr = GetContextPtr(vContextPtr);
     if (ctx_ptr != nullptr) {
@@ -1026,12 +1133,13 @@ bool vkInAppGpuProfiler::addContext(void* vContextPtr, VkPhysicalDevice vPhysica
     }
     return res;
 }
+#endif
 
-void vkInAppGpuProfiler::Destroy() {
+void InAppGpuProfiler::Destroy() {
     m_Contexts.clear();
 }
 
-void vkInAppGpuProfiler::Collect(
+void InAppGpuProfiler::Collect(
 #ifdef VULKAN_PROFILING
         VkCommandBuffer vResetQueryPoolCmd
 #endif
@@ -1051,7 +1159,7 @@ void vkInAppGpuProfiler::Collect(
     }
 }
 
-void vkInAppGpuProfiler::DrawFlamGraph(const char* vLabel, bool* pOpen, ImGuiWindowFlags vFlags) {
+void InAppGpuProfiler::DrawFlamGraph(const char* vLabel, bool* pOpen, ImGuiWindowFlags vFlags) {
     if (m_ImGuiBeginFunctor != nullptr && m_ImGuiBeginFunctor(vLabel, pOpen, vFlags | ImGuiWindowFlags_MenuBar)) {
         DrawFlamGraphNoWin();
     }
@@ -1064,7 +1172,7 @@ void vkInAppGpuProfiler::DrawFlamGraph(const char* vLabel, bool* pOpen, ImGuiWin
     DrawDetails(vFlags);
 }
 
-void vkInAppGpuProfiler::DrawFlamGraphNoWin() {
+void InAppGpuProfiler::DrawFlamGraphNoWin() {
     if (sIsActive) {
         m_DrawMenuBar();
         for (const auto& con : m_Contexts) {
@@ -1075,17 +1183,17 @@ void vkInAppGpuProfiler::DrawFlamGraphNoWin() {
     }
 }
 
-void vkInAppGpuProfiler::DrawFlamGraphChilds(ImGuiWindowFlags vFlags) {
+void InAppGpuProfiler::DrawFlamGraphChilds(ImGuiWindowFlags vFlags) {
     m_SelectedQuery.reset();
     m_QueryZoneToClose = -1;
-    for (size_t idx = 0U; idx < iagp::vkInAppGpuQueryZone::sTabbedQueryZones.size(); ++idx) {
-        auto ptr = iagp::vkInAppGpuQueryZone::sTabbedQueryZones[idx].lock();
+    for (size_t idx = 0U; idx < iagp::InAppGpuQueryZone::sTabbedQueryZones.size(); ++idx) {
+        auto ptr = iagp::InAppGpuQueryZone::sTabbedQueryZones[idx].lock();
         if (ptr != nullptr) {
             bool opened = true;
             ImGui::SetNextWindowSizeConstraints(IAGP_SUB_WINDOW_MIN_SIZE, ImGui::GetIO().DisplaySize);
             if (m_ImGuiBeginFunctor != nullptr && m_ImGuiBeginFunctor(ptr->imGuiTitle.c_str(), &opened, vFlags)) {
                 if (sIsActive) {
-                    ptr->DrawFlamGraph(iagp::vkInAppGpuProfiler::Instance()->GetGraphTypeRef(), m_SelectedQuery);
+                    ptr->DrawFlamGraph(iagp::InAppGpuProfiler::Instance()->GetGraphTypeRef(), m_SelectedQuery);
                 }
             }
             if (m_ImGuiEndFunctor != nullptr) {
@@ -1097,23 +1205,23 @@ void vkInAppGpuProfiler::DrawFlamGraphChilds(ImGuiWindowFlags vFlags) {
         }
     }
     if (m_QueryZoneToClose > -1) {
-        iagp::vkInAppGpuQueryZone::sTabbedQueryZones.erase(  //
-            iagp::vkInAppGpuQueryZone::sTabbedQueryZones.begin() + m_QueryZoneToClose);
+        iagp::InAppGpuQueryZone::sTabbedQueryZones.erase(  //
+            iagp::InAppGpuQueryZone::sTabbedQueryZones.begin() + m_QueryZoneToClose);
     }
 }
 
-void vkInAppGpuProfiler::SetImGuiBeginFunctor(const ImGuiBeginFunctor& vImGuiBeginFunctor) {
+void InAppGpuProfiler::SetImGuiBeginFunctor(const ImGuiBeginFunctor& vImGuiBeginFunctor) {
     m_ImGuiBeginFunctor = vImGuiBeginFunctor;
 }
 
-void vkInAppGpuProfiler::SetImGuiEndFunctor(const ImGuiEndFunctor& vImGuiEndFunctor) {
+void InAppGpuProfiler::SetImGuiEndFunctor(const ImGuiEndFunctor& vImGuiEndFunctor) {
     m_ImGuiEndFunctor = vImGuiEndFunctor;
 }
 
-void vkInAppGpuProfiler::m_DrawMenuBar() {
+void InAppGpuProfiler::m_DrawMenuBar() {
     if (ImGui::BeginMenuBar()) {
-        if (vkInAppGpuScopedZone::sMaxDepth) {
-            vkInAppGpuQueryZone::sMaxDepthToOpen = vkInAppGpuScopedZone::sMaxDepth;
+        if (InAppGpuScopedZone::sMaxDepth) {
+            InAppGpuQueryZone::sMaxDepthToOpen = InAppGpuScopedZone::sMaxDepth;
         }
 
         IAGP_IMGUI_PLAY_PAUSE_BUTTON(sIsPaused);
@@ -1123,14 +1231,14 @@ void vkInAppGpuProfiler::m_DrawMenuBar() {
         }
 
 #ifdef IAGP_DEV_MODE
-        ImGui::Checkbox("Logging", &vkInAppGpuQueryZone::sActivateLogger);
+        ImGui::Checkbox("Logging", &InAppGpuQueryZone::sActivateLogger);
 
         if (ImGui::BeginMenu("Graph Types")) {
-            if (ImGui::MenuItem("Horizontal", nullptr, m_GraphType == iagp::vkInAppGpuGraphTypeEnum::IN_APP_GPU_HORIZONTAL)) {
-                m_GraphType = iagp::vkInAppGpuGraphTypeEnum::IN_APP_GPU_HORIZONTAL;
+            if (ImGui::MenuItem("Horizontal", nullptr, m_GraphType == iagp::InAppGpuGraphTypeEnum::IN_APP_GPU_HORIZONTAL)) {
+                m_GraphType = iagp::InAppGpuGraphTypeEnum::IN_APP_GPU_HORIZONTAL;
             }
-            if (ImGui::MenuItem("Circular", nullptr, m_GraphType == iagp::vkInAppGpuGraphTypeEnum::IN_APP_GPU_CIRCULAR)) {
-                m_GraphType = iagp::vkInAppGpuGraphTypeEnum::IN_APP_GPU_CIRCULAR;
+            if (ImGui::MenuItem("Circular", nullptr, m_GraphType == iagp::InAppGpuGraphTypeEnum::IN_APP_GPU_CIRCULAR)) {
+                m_GraphType = iagp::InAppGpuGraphTypeEnum::IN_APP_GPU_CIRCULAR;
             }
             ImGui::EndMenu();
         }
@@ -1140,7 +1248,7 @@ void vkInAppGpuProfiler::m_DrawMenuBar() {
     }
 }
 
-void vkInAppGpuProfiler::DrawDetails(ImGuiWindowFlags vFlags) {
+void InAppGpuProfiler::DrawDetails(ImGuiWindowFlags vFlags) {
     if (m_ShowDetails) {
         if (m_ImGuiBeginFunctor != nullptr && m_ImGuiBeginFunctor(IAGP_DETAILS_TITLE, &m_ShowDetails, vFlags)) {
             DrawDetailsNoWin();
@@ -1151,7 +1259,7 @@ void vkInAppGpuProfiler::DrawDetails(ImGuiWindowFlags vFlags) {
     }
 }
 
-void vkInAppGpuProfiler::DrawDetailsNoWin() {
+void InAppGpuProfiler::DrawDetailsNoWin() {
     if (!sIsActive) {
         return;
     }
@@ -1168,8 +1276,8 @@ void vkInAppGpuProfiler::DrawDetailsNoWin() {
         ImGuiTableFlags_ScrollY |         //
         ImGuiTableFlags_NoHostExtendY;
     const auto& size = ImGui::GetContentRegionAvail();
-    auto listViewID = ImGui::GetID("##vkInAppGpuProfiler_DrawDetails");
-    if (ImGui::BeginTableEx("##vkInAppGpuProfiler_DrawDetails", listViewID, count_tables, flags, size, 0.0f)) {
+    auto listViewID = ImGui::GetID("##InAppGpuProfiler_DrawDetails");
+    if (ImGui::BeginTableEx("##InAppGpuProfiler_DrawDetails", listViewID, count_tables, flags, size, 0.0f)) {
         ImGui::TableSetupColumn("Tree", ImGuiTableColumnFlags_WidthStretch);
 #ifdef IAGP_SHOW_COUNT
         ImGui::TableSetupColumn("Count");
@@ -1188,11 +1296,36 @@ void vkInAppGpuProfiler::DrawDetailsNoWin() {
     }
 }
 
-IAGPContextPtr vkInAppGpuProfiler::GetContextPtr(IAGP_GPU_CONTEXT vThreadPtr) {
+#ifdef OPENGL_PROFILING
+IAGPContextPtr InAppGpuProfiler::GetContextPtr(IAGP_GPU_CONTEXT vThreadPtr) {
+    if (!sIsActive) {
+        return nullptr;
+    }
+
+    if (vThreadPtr != nullptr) {
+        if (m_Contexts.find((intptr_t)vThreadPtr) == m_Contexts.end()) {
+            m_Contexts[(intptr_t)vThreadPtr] = InAppGpuContext::create(vThreadPtr);
+        }
+
+        return m_Contexts[(intptr_t)vThreadPtr];
+    }
+
+    IAGP_LOG_ERROR_MESSAGE("GPU_CONTEXT vThreadPtr is NULL");
+
+    return nullptr;
+}
+#endif
+
+#ifdef VULKAN_PROFILING
+IAGPContextPtr InAppGpuProfiler::GetContextPtr(IAGP_GPU_CONTEXT vThreadPtr) {
     if (m_Contexts.find((intptr_t)vThreadPtr) == m_Contexts.end()) {
-        m_Contexts[(intptr_t)vThreadPtr] = vkInAppGpuContext::create(vThreadPtr);
+        m_Contexts[(intptr_t)vThreadPtr] = InAppGpuContext::create(vThreadPtr);
     }
     return m_Contexts[(intptr_t)vThreadPtr];
+    IAGP_LOG_ERROR_MESSAGE("GPU_CONTEXT vThreadPtr is NULL");
+
+    return nullptr;
 }
+#endif // VULKAN_PROFILING
 
 }  // namespace iagp
