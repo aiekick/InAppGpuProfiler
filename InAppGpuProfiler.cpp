@@ -740,7 +740,6 @@ void InAppGpuContext::Clear() {
 bool InAppGpuContext::Init(VkPhysicalDevice vPhysicalDevice, VkDevice vLogicalDevice, const uint32_t& vMaxQueryCount) {
     m_PhysicalDevice = vPhysicalDevice;
     m_LogicalDevice = vLogicalDevice;
-    m_DispatchLoaderPtr = vDispatchLoaderPtr;
 
     VkPhysicalDeviceProperties props;
     VULKAN_HPP_DEFAULT_DISPATCHER.vkGetPhysicalDeviceProperties(m_PhysicalDevice, &props);
