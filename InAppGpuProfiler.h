@@ -44,8 +44,18 @@ SOFTWARE.
 #endif // CUSTOM_IN_APP_GPU_PROFILER_CONFIG
 
 #ifndef IN_APP_GPU_PROFILER_API
+#if defined(__WIN32__) || defined(WIN32) || defined(_WIN32) || defined(__WIN64__) || defined(WIN64) || defined(_WIN64) || defined(_MSC_VER)
+#if defined(ImAppGpuProfiler_EXPORTS)
+#define IN_APP_GPU_PROFILER_API __declspec(dllexport)
+#elif defined(BUILD_IN_APP_GPU_PROFILER_SHARED_LIBS)
+#define IN_APP_GPU_PROFILER_API __declspec(dllimport)
+#else
 #define IN_APP_GPU_PROFILER_API
-#endif // IN_APP_GPU_PROFILER_API
+#endif
+#else
+#define IN_APP_GPU_PROFILER_API
+#endif
+#endif  // IN_APP_GPU_PROFILER_API
 
 // a main zone for the frame must always been defined for the frame
 #define AIGPNewFrame(section, fmt, ...)  \

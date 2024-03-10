@@ -9,7 +9,7 @@ if (BUILD_SHARED_LIBS)
 		${CMAKE_CURRENT_SOURCE_DIR}/InAppGpuProfiler.h
 		${CMAKE_CURRENT_SOURCE_DIR}/InAppGpuProfilerConfig.h
 	)
-	target_compile_definitions(InAppGpuProfiler INTERFACE IN_APP_GPU_PROFILER_API)
+	target_compile_definitions(InAppGpuProfiler INTERFACE BUILD_IN_APP_GPU_PROFILER_SHARED_LIBS)
 	set_target_properties(InAppGpuProfiler PROPERTIES POSITION_INDEPENDENT_CODE ON)
 else()
 	set(USE_MSVC_RUNTIME_LIBRARY_DLL OFF CACHE BOOL "" FORCE)
