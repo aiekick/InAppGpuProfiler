@@ -565,7 +565,7 @@ bool InAppGpuQueryZone::m_DrawHorizontalFlameGraph(IAGPQueryZonePtr vRoot, IAGPQ
                 if (pressed) {
                     if (ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
                         vOutSelectedQuery = m_This;  // open in the main window
-                    } else if (ImGui::IsMouseClicked(ImGuiMouseButton_Right)) {
+                    } else if (ImGui::IsMouseClicked(ImGuiMouseButton_Right) && rootPtr != nullptr) {
                         sTabbedQueryZones.push_back(m_This);  // open new window
                     }
                 }
