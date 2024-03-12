@@ -24,24 +24,29 @@ SOFTWARE.
 
 #pragma once
 
-#include <set>
-#include <cmath>
-#include <array>
-#include <memory>
-#include <vector>
-#include <string>
+#ifdef IMGUI_INCLUDE
+#include IMGUI_INCLUDE
+#else  // IMGUI_INCLUDE
 #include <imgui.h>
-#include <unordered_map>
-
-#ifndef IMGUI_DEFINE_MATH_OPERATORS
-#define IMGUI_DEFINE_MATH_OPERATORS
-#endif // IMGUI_DEFINE_MATH_OPERATORS
+#endif  // IMGUI_INCLUDE
 
 #ifndef CUSTOM_IN_APP_GPU_PROFILER_CONFIG
 #include "InAppGpuProfilerConfig.h"
 #else // CUSTOM_IN_APP_GPU_PROFILER_CONFIG
 #include CUSTOM_IN_APP_GPU_PROFILER_CONFIG
 #endif // CUSTOM_IN_APP_GPU_PROFILER_CONFIG
+
+#include <set>
+#include <cmath>
+#include <array>
+#include <memory>
+#include <vector>
+#include <string>
+#include <unordered_map>
+
+#ifndef IMGUI_DEFINE_MATH_OPERATORS
+#define IMGUI_DEFINE_MATH_OPERATORS
+#endif // IMGUI_DEFINE_MATH_OPERATORS
 
 #ifndef IN_APP_GPU_PROFILER_API
 #if defined(__WIN32__) || defined(WIN32) || defined(_WIN32) || defined(__WIN64__) || defined(WIN64) || defined(_WIN64) || defined(_MSC_VER)
