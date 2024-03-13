@@ -188,17 +188,17 @@ bool InAppGpuQueryZone::sShowLeafMode = false;
 float InAppGpuQueryZone::sContrastRatio = 4.3f;
 bool InAppGpuQueryZone::sActivateLogger = false;
 std::vector<IAGPQueryZoneWeak> InAppGpuQueryZone::sTabbedQueryZones = {};
-IAGPQueryZonePtr InAppGpuQueryZone::create(IAGP_GPU_CONTEXT vContext, const void* vPtr, const std::string& vName, const std::string& vSectionName,
+IAGPQueryZonePtr InAppGpuQueryZone::create(IAGP_GPU_CONTEXT vContext, const std::string& vName, const std::string& vSectionName,
                                            const bool& vIsRoot) {
-    auto res = std::make_shared<InAppGpuQueryZone>(vContext, vPtr, vName, vSectionName, vIsRoot);
+    auto res = std::make_shared<InAppGpuQueryZone>(vContext, vName, vSectionName, vIsRoot);
     res->m_This = res;
     return res;
 }
 InAppGpuQueryZone::circularSettings InAppGpuQueryZone::sCircularSettings;
 
-InAppGpuQueryZone::InAppGpuQueryZone(IAGP_GPU_CONTEXT vContext, const void* vPtr, const std::string& vName, const std::string& vSectionName,
+InAppGpuQueryZone::InAppGpuQueryZone(IAGP_GPU_CONTEXT vContext, const std::string& vName, const std::string& vSectionName,
                                      const bool& vIsRoot)
-    : m_Context(vContext), name(vName), m_IsRoot(vIsRoot), m_SectionName(vSectionName), m_Ptr(vPtr) {
+    : m_Context(vContext), m_IsRoot(vIsRoot), m_SectionName(vSectionName), name(vName) {
     m_StartFrameId = 0;
     m_EndFrameId = 0;
     m_StartTimeStamp = 0;
@@ -283,7 +283,7 @@ void InAppGpuQueryZone::DrawDetails() {
         ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_CollapsingHeader | ImGuiTreeNodeFlags_DefaultOpen;
 
         bool any_childs_to_show = false;
-        for (const auto zone : zonesOrdered) {
+        for (const auto& zone : zonesOrdered) {
             if (zone != nullptr && zone->m_ElapsedTime > 0.0) {
                 any_childs_to_show = true;
                 break;
@@ -345,7 +345,7 @@ void InAppGpuQueryZone::DrawDetails() {
         if (res) {
             m_Expanded = true;
             ImGui::Indent();
-            for (const auto zone : zonesOrdered) {
+            for (const auto& zone : zonesOrdered) {
                 if (zone != nullptr && zone->m_ElapsedTime > 0.0) {
                     zone->DrawDetails();
                 }
@@ -372,6 +372,8 @@ bool InAppGpuQueryZone::DrawFlamGraph(InAppGpuGraphTypeEnum vGraphType, IAGPQuer
         case InAppGpuGraphTypeEnum::IN_APP_GPU_CIRCULAR:  // circular flame graph
             pressed = m_DrawCircularFlameGraph(m_This.lock(), vOutSelectedQuery, vParent, vDepth);
             break;
+        case InAppGpuGraphTypeEnum::IN_APP_GPU_Count:
+        default: break;
     }
     return pressed;
 }
@@ -554,7 +556,6 @@ bool InAppGpuQueryZone::m_DrawHorizontalFlameGraph(IAGPQueryZonePtr vRoot, IAGPQ
                 const ImVec2 label_size = ImGui::CalcTextSize(label, nullptr, true);
                 const float height = label_size.y + style.FramePadding.y * 2.0f;
                 const ImVec2 bPos = ImVec2(bar_start + style.FramePadding.x, vDepth * height + style.FramePadding.y);
-                const ImVec2 bSize = ImVec2(bar_size - style.FramePadding.x, 0.0f);
                 const ImVec2 pos = window->DC.CursorPos + bPos;
                 const ImVec2 size = ImVec2(bar_size, height);
                 const ImRect bb(pos, pos + size);
@@ -585,7 +586,7 @@ bool InAppGpuQueryZone::m_DrawHorizontalFlameGraph(IAGPQueryZonePtr vRoot, IAGPQ
             }
 
             // we dont show child if this one have elapsed time to 0.0
-            for (const auto zone : zonesOrdered) {
+            for (const auto& zone : zonesOrdered) {
                 if (zone != nullptr) {
                     pressed |= zone->m_DrawHorizontalFlameGraph(vRoot, vOutSelectedQuery, m_This, vDepth);
                 }
@@ -687,7 +688,7 @@ bool InAppGpuQueryZone::m_DrawCircularFlameGraph(IAGPQueryZonePtr vRoot, IAGPQue
 
             // we dont show child if this one have elapsed time to 0.0
             // childs
-            for (const auto zone : zonesOrdered) {
+            for (const auto& zone : zonesOrdered) {
                 if (zone != nullptr) {
                     pressed |= zone->m_DrawCircularFlameGraph(vRoot, vOutSelectedQuery, m_This, vDepth);
                 }
@@ -807,7 +808,7 @@ IAGPQueryZonePtr InAppGpuGLContext::GetQueryZoneForName(const void* vPtr, const 
 #endif
         m_DepthToLastZone.clear();
         if (m_RootZone == nullptr) {
-            res = InAppGpuQueryZone::create(m_Context, vPtr, vName, vSection, vIsRoot);
+            res = InAppGpuQueryZone::create(m_Context, vName, vSection, vIsRoot);
             if (res != nullptr) {
                 res->depth = InAppGpuScopedZone::sCurrentDepth;
                 res->UpdateBreadCrumbTrail();
@@ -833,7 +834,7 @@ IAGPQueryZonePtr InAppGpuGLContext::GetQueryZoneForName(const void* vPtr, const 
                 found = (ptr_iter->second.find(key_str) != ptr_iter->second.end());  // not found
             }
             if (!found) {  // not found
-                res = InAppGpuQueryZone::create(m_Context, vPtr, vName, vSection, vIsRoot);
+                res = InAppGpuQueryZone::create(m_Context, vName, vSection, vIsRoot);
                 if (res != nullptr) {
                     res->parentPtr = root;
                     res->rootPtr = m_RootZone;

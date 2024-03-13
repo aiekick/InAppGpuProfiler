@@ -164,9 +164,38 @@ public:
     static float sContrastRatio;
     static bool sActivateLogger;
     static std::vector<IAGPQueryZoneWeak> sTabbedQueryZones;
-    static IAGPQueryZonePtr create(IAGP_GPU_CONTEXT vContext, const void* vPtr, const std::string& vName, const std::string& vSectionName,
+    static IAGPQueryZonePtr create(IAGP_GPU_CONTEXT vContext, const std::string& vName, const std::string& vSectionName,
                                    const bool& vIsRoot = false);
     static circularSettings sCircularSettings;
+
+private:
+    IAGPQueryZoneWeak m_This;
+    IAGP_GPU_CONTEXT m_Context;
+    bool m_IsRoot = false;
+    double m_ElapsedTime = 0.0;
+    double m_StartTime = 0.0;
+    double m_EndTime = 0.0;
+    GLuint m_StartFrameId = 0;
+    GLuint m_EndFrameId = 0;
+    GLuint64 m_StartTimeStamp = 0;
+    GLuint64 m_EndTimeStamp = 0;
+    bool m_Expanded = false;
+    bool m_Highlighted = false;
+    InAppGpuAverageValue<GLuint64> m_AverageStartValue;
+    InAppGpuAverageValue<GLuint64> m_AverageEndValue;
+    std::string m_BarLabel;
+    std::string m_SectionName;
+    ImVec4 cv4;
+    ImVec4 hsv;
+
+    // fil d'ariane
+    std::array<IAGPQueryZoneWeak, IAGP_RECURSIVE_LEVELS_COUNT> m_BreadCrumbTrail;  // the parent cound is done by current depth
+
+    // circular
+    const float _1PI_ = 3.141592653589793238462643383279f;
+    //const float _2PI_ = 6.283185307179586476925286766559f;
+    const ImU32 m_BlackU32 = ImGui::GetColorU32(ImVec4(0, 0, 0, 1));
+    ImVec2 m_P0, m_P1, m_LP0, m_LP1;
 
 public:
     GLuint depth = 0U;  // the depth of the QueryZone
@@ -181,40 +210,9 @@ public:
     GLuint current_count = 0U;
     GLuint last_count = 0U;
 
-private:
-    IAGPQueryZoneWeak m_This;
-    bool m_IsRoot = false;
-    const void* m_Ptr = nullptr;
-    double m_ElapsedTime = 0.0;
-    double m_StartTime = 0.0;
-    double m_EndTime = 0.0;
-    GLuint m_StartFrameId = 0;
-    GLuint m_EndFrameId = 0;
-    GLuint64 m_StartTimeStamp = 0;
-    GLuint64 m_EndTimeStamp = 0;
-    bool m_Expanded = false;
-    bool m_Highlighted = false;
-    InAppGpuAverageValue<GLuint64> m_AverageStartValue;
-    InAppGpuAverageValue<GLuint64> m_AverageEndValue;
-    IAGP_GPU_CONTEXT m_Context;
-    std::string m_BarLabel;
-    std::string m_SectionName;
-    ImVec4 cv4;
-    ImVec4 hsv;
-    InAppGpuGraphTypeEnum m_GraphType = InAppGpuGraphTypeEnum::IN_APP_GPU_HORIZONTAL;
-
-    // fil d'ariane
-    std::array<IAGPQueryZoneWeak, IAGP_RECURSIVE_LEVELS_COUNT> m_BreadCrumbTrail;  // the parent cound is done by current depth
-
-    // circular
-    const float _1PI_ = 3.141592653589793238462643383279f;
-    const float _2PI_ = 6.283185307179586476925286766559f;
-    const ImU32 m_BlackU32 = ImGui::GetColorU32(ImVec4(0, 0, 0, 1));
-    ImVec2 m_P0, m_P1, m_LP0, m_LP1;
-
 public:
     InAppGpuQueryZone() = default;
-    InAppGpuQueryZone(IAGP_GPU_CONTEXT vContext, const void* vPtr, const std::string& vName, const std::string& vSectionName,
+    InAppGpuQueryZone(IAGP_GPU_CONTEXT vContext, const std::string& vName, const std::string& vSectionName,
                       const bool& vIsRoot = false);
     ~InAppGpuQueryZone();
     void Clear();
