@@ -117,7 +117,7 @@ static bool PlayPauseButton(bool& vPlayPause) {
 
 namespace iagp {
 
-void checkGLErrors(const char* vFile, const char* vFunc, const int& vLine) {
+inline void checkGLErrors(const char* vFile, const char* vFunc, const int& vLine) {
 #ifdef _DEBUG
     const GLenum err(glGetError());
     if (err != GL_NO_ERROR) {
