@@ -183,3 +183,11 @@ The demo app let you see how to use in detail the Profiler
 Its coming with a little opengl framework with some of my [shaders](https://www.shadertoy.com/user/aiekick)
 
 ![img](https://github.com/aiekick/InAppGpuProfiler/blob/DemoApp/doc/thumbnail.png)
+
+# Vulkan Support
+
+A vulkan version exist [HERE](https://github.com/aiekick/Gaia/blob/f7eb02beac1ee54e085a8e73387a782b329fa7f8/src/Gui/VulkanProfiler.cpp)
+
+but need some work for make it agnostic and dependent only from VK Api
+
+not found the time for unify the two versions at this moment
