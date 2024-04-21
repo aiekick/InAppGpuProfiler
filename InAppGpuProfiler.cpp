@@ -1,7 +1,7 @@
 ﻿/*
 MIT License
 
-Copyright (c) 2021-2023 Stephane Cuillerdier (aka aiekick)
+Copyright (c) 2021-2024 Stephane Cuillerdier (aka aiekick)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -386,7 +386,7 @@ void InAppGpuQueryZone::UpdateBreadCrumbTrail() {
             _parent_ptr = _parent_ptr->parentPtr;
             if (_parent_ptr && _parent_ptr->depth == (_depth - 1U)) {
                 _depth = _parent_ptr->depth;
-                if (_depth < m_BreadCrumbTrail.size()) {
+                if (_depth < (int32_t)m_BreadCrumbTrail.size()) {
                     m_BreadCrumbTrail[_depth] = _parent_ptr;
                 } else {
                     DEBUG_BREAK;
@@ -399,7 +399,7 @@ void InAppGpuQueryZone::UpdateBreadCrumbTrail() {
         // update the imgui title
         imGuiTitle.clear();
         for (GLuint idx = 0U; idx < depth; ++idx) {
-            if (idx < m_BreadCrumbTrail.size()) {
+            if (idx < (GLuint)m_BreadCrumbTrail.size()) {
                 auto ptr = m_BreadCrumbTrail[idx].lock();
                 if (ptr != nullptr) {
                     if (idx > 0U) {
