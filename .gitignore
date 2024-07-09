@@ -33,3 +33,6 @@
 /build
 /bin/Demo_Win32.pdb
 /bin/imgui.ini
+/.vs
+/bin/DemoApp_Win32.pdb
+/out
