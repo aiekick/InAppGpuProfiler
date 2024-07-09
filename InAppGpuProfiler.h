@@ -54,6 +54,7 @@ SOFTWARE.
 #include <memory>
 #include <vector>
 #include <string>
+#include <functional>
 #include <unordered_map>
 
 #ifndef IMGUI_DEFINE_MATH_OPERATORS
