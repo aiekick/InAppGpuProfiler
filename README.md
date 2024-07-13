@@ -1,9 +1,9 @@
-[![Win](https://github.com/aiekick/InAppGpuProfiler/actions/workflows/Win.yml/badge.svg)](https://github.com/aiekick/InAppGpuProfiler/actions/workflows/Win.yml)
-[![Linux](https://github.com/aiekick/InAppGpuProfiler/actions/workflows/Linux.yml/badge.svg)](https://github.com/aiekick/InAppGpuProfiler/actions/workflows/Linux.yml)
-[![Osx](https://github.com/aiekick/InAppGpuProfiler/actions/workflows/Osx.yml/badge.svg)](https://github.com/aiekick/InAppGpuProfiler/actions/workflows/Osx.yml)
+[![Win](https://github.com/aiekick/iagp/actions/workflows/Win.yml/badge.svg)](https://github.com/aiekick/iagp/actions/workflows/Win.yml)
+[![Linux](https://github.com/aiekick/iagp/actions/workflows/Linux.yml/badge.svg)](https://github.com/aiekick/iagp/actions/workflows/Linux.yml)
+[![Osx](https://github.com/aiekick/iagp/actions/workflows/Osx.yml/badge.svg)](https://github.com/aiekick/iagp/actions/workflows/Osx.yml)
 [![Wrapped Dear ImGui Version](https://img.shields.io/badge/Dear%20ImGui%20Version-1.89.9-blue.svg)](https://github.com/ocornut/imgui)
 
-# [InAppGpuProfiler](https://github.com/aiekick/InAppGpuProfiler)
+# [iagp](https://github.com/aiekick/iagp)
 
 # purpose
 
@@ -13,7 +13,7 @@ Only Opengl is supported for the moment
 
 ## ImGui Supported Version
 
-InAppGpuProfiler follow the master and docking branch of ImGui . currently ImGui 1.89.9
+iagp follow the master and docking branch of ImGui . currently ImGui 1.89.9
 
 ## Requirements:
 
@@ -37,7 +37,7 @@ And of course, have added [Dear ImGui](https://github.com/ocornut/imgui) to your
 
 ## Mandatory definition
 
-InAppGpuProfiler is designed to be not invasive with you build configuration
+iagp is designed to be not invasive with you build configuration
 
 So you need to create a config.
 
@@ -168,13 +168,13 @@ By left clicking on a bar, you can open it int the main profiler window.
 
 When you click on buttons of the breadcrumb trail you can select a parent bar to show
 
-![img](https://github.com/aiekick/InAppGpuProfiler/blob/DemoApp/doc/breadcrumbtrail.gif)
+![img](https://github.com/aiekick/iagp/blob/DemoApp/doc/breadcrumbtrail.gif)
 
 # Feature : Sub Windows per profiler bars
 
 By right clicking on a bars, you can open the bar in another window.
 
-![img](https://github.com/aiekick/InAppGpuProfiler/blob/DemoApp/doc/sub_windows.gif)
+![img](https://github.com/aiekick/iagp/blob/DemoApp/doc/sub_windows.gif)
 
 # The Demo App
 
@@ -182,7 +182,7 @@ The demo app let you see how to use in detail the Profiler
 
 Its coming with a little opengl framework with some of my [shaders](https://www.shadertoy.com/user/aiekick)
 
-![img](https://github.com/aiekick/InAppGpuProfiler/blob/DemoApp/doc/thumbnail.png)
+![img](https://github.com/aiekick/iagp/blob/DemoApp/doc/thumbnail.png)
 
 # Vulkan Support
 

@@ -25,7 +25,7 @@ SOFTWARE.
 // This is an independent m_oject of an individual developer. Dear PVS-Studio, please check it.
 // PVS-Studio Static Code Analyzer for C, C++ and C#: http://www.viva64.com
 
-#include "InAppGpuProfiler.h"
+#include "iagp.h"
 
 #include <cstdarg> /* va_list, va_start, va_arg, va_end */
 #include <cmath>

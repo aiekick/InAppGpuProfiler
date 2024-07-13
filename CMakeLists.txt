@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.20)
 
-set(PROJECT InAppGpuProfiler)
+set(PROJECT iagp)
 
 enable_language(C CXX)
 
@@ -39,18 +39,18 @@ endif()
 if (BUILD_SHARED_LIBS)
 	set(USE_MSVC_RUNTIME_LIBRARY_DLL ON CACHE BOOL "" FORCE)
 	add_library(${PROJECT} 
-		${CMAKE_CURRENT_SOURCE_DIR}/InAppGpuProfiler.cpp
-		${CMAKE_CURRENT_SOURCE_DIR}/InAppGpuProfiler.h
-		${CMAKE_CURRENT_SOURCE_DIR}/InAppGpuProfilerConfig.h
+		${CMAKE_CURRENT_SOURCE_DIR}/iagp.cpp
+		${CMAKE_CURRENT_SOURCE_DIR}/iagp.h
+		${CMAKE_CURRENT_SOURCE_DIR}/iagpConfig.h
 	)
 	target_compile_definitions(${PROJECT} INTERFACE BUILD_IN_APP_GPU_PROFILER_SHARED_LIBS)
 	set_target_properties(${PROJECT} PROPERTIES POSITION_INDEPENDENT_CODE ON)
 else()
 	set(USE_MSVC_RUNTIME_LIBRARY_DLL OFF CACHE BOOL "" FORCE)
 	add_library(${PROJECT} STATIC 
-		${CMAKE_CURRENT_SOURCE_DIR}/InAppGpuProfiler.cpp
-		${CMAKE_CURRENT_SOURCE_DIR}/InAppGpuProfiler.h
-		${CMAKE_CURRENT_SOURCE_DIR}/InAppGpuProfilerConfig.h
+		${CMAKE_CURRENT_SOURCE_DIR}/iagp.cpp
+		${CMAKE_CURRENT_SOURCE_DIR}/iagp.h
+		${CMAKE_CURRENT_SOURCE_DIR}/iagpConfig.h
 	)
 endif()
 
