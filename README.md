@@ -25,7 +25,7 @@ And of course, have added [Dear ImGui](https://github.com/ocornut/imgui) to your
 - Compatible with MacOs, Linux, Windows
 - Scopped queries functions
 - can open profiling section in sub windows
-- can open profiling section in the same windows and get a breadcrumb trail to go basck to parents
+- can open profiling section in the same windows and get a breadcrumb trail to go back to parents
 
 ## Warnings : 
 - the circular vizualization is in work in progress state. dont use it for the moment
