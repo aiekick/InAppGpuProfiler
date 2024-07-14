@@ -25,7 +25,7 @@ SOFTWARE.
 #pragma once
 
 #include <glad/glad.h>
-#include <InAppGpuProfiler/InAppGpuProfiler.h>
+#include <iagp/iagp.h>
 
 #ifdef MSVC
 #define __PRETTY_FUNCTION__ __FUNCSIG__
@@ -33,7 +33,7 @@ SOFTWARE.
 
 namespace glApi {
 
-void checkGLErrors(const char* vFile, const char* vFunc, const int& vLine) {
+static inline void checkGLErrors(const char* vFile, const char* vFunc, const int& vLine) {
 #ifdef _DEBUG
     const GLenum err(glGetError());
     if (err != GL_NO_ERROR) {
@@ -56,10 +56,24 @@ void checkGLErrors(const char* vFile, const char* vFunc, const int& vLine) {
 
 #define CheckGLErrors glApi::checkGLErrors(__FILE__, __FUNCTION__, __LINE__)
 
+// the order is important
+// so dont reorder these includes
+
+// 'auto' mean auto configuration
+// uniform params from code
+// fbo params from code
+// like SoGLSL
+
 #include "texture.hpp"
 #include "fbo.hpp"
 #include "mesh.hpp"
+//#include "meshVfx.hpp"
 #include "quadMesh.hpp"
+#include "procMesh.hpp"
+#include "uniforms.hpp"
 #include "shader.hpp"
+#include "shaderauto.hpp"
 #include "program.hpp"
+#include "programauto.hpp"
 #include "quadVfx.hpp"
+#include "quadVfxauto.hpp"

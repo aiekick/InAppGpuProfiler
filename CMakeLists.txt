@@ -59,7 +59,7 @@ include_directories(
 	${CMAKE_SOURCE_DIR}
 )
 
-add_subdirectory(${CMAKE_SOURCE_DIR}/InAppGpuProfiler)
+add_subdirectory(${CMAKE_SOURCE_DIR}/iagp)
 	
 add_executable(${PROJECT}
 	${MAIN_SOURCES}
@@ -78,7 +78,7 @@ else()
 endif()
 
 set_target_properties(${PROJECT} PROPERTIES CXX_STANDARD 11)
-set_target_properties(InAppGpuProfiler PROPERTIES CXX_STANDARD 11)
+set_target_properties(iagp PROPERTIES CXX_STANDARD 11)
 	
 set(CMAKE_INSTALL_PREFIX "${CMAKE_SOURCE_DIR}")
 install(TARGETS ${PROJECT} DESTINATION ${CMAKE_INSTALL_PREFIX})
@@ -88,12 +88,12 @@ target_link_libraries(${PROJECT} PRIVATE
 	${GLFW_LIBRARIES}
 	${GLAD_LIBRARIES}
 	${IMGUI_LIBRARIES}
-	InAppGpuProfiler
+	iagp
 )
 
-set_target_properties(InAppGpuProfiler PROPERTIES FOLDER Lib)
+set_target_properties(iagp PROPERTIES FOLDER Lib)
 
-target_include_directories(InAppGpuProfiler PRIVATE
+target_include_directories(iagp PRIVATE
 	${CMAKE_SOURCE_DIR}
 )
 

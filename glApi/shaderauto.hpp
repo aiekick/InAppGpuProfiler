@@ -32,28 +32,29 @@ SOFTWARE.
 
 namespace glApi {
 
-class Shader;
-typedef std::shared_ptr<Shader> ShaderPtr;
-typedef std::weak_ptr<Shader> ShaderWeak;
+class ShaderAuto;
+typedef std::shared_ptr<ShaderAuto> ShaderAutoPtr;
+typedef std::weak_ptr<ShaderAuto> ShaderAutoWeak;
 
-class Shader {
+class ShaderAuto {
 private:
-    ShaderWeak m_This;
+    ShaderAutoWeak m_This;
     GLuint m_ShaderId = 0U;
     std::string m_ShaderName;
     GLenum m_ShaderType = 0;
+    UniformStrings m_UniformStrings;
 
 public:
-    static ShaderPtr createFromFile(const std::string& vShaderName, const GLenum& vShaderType, const std::string& vFile) {
-        auto res = std::make_shared<Shader>();
+    static ShaderAutoPtr createFromFile(const std::string& vShaderName, const GLenum& vShaderType, const std::string& vFile) {
+        auto res = std::make_shared<ShaderAuto>();
         res->m_This = res;
         if (!res->initFromFile(vShaderName, vShaderType, vFile)) {
             res.reset();
         }
         return res;
     }
-    static ShaderPtr createFromCode(const std::string& vShaderName, const GLenum& vShaderType, const std::string& vCode) {
-        auto res = std::make_shared<Shader>();
+    static ShaderAutoPtr createFromCode(const std::string& vShaderName, const GLenum& vShaderType, const std::string& vCode) {
+        auto res = std::make_shared<ShaderAuto>();
         res->m_This = res;
         if (!res->initFromCode(vShaderName, vShaderType, vCode)) {
             res.reset();
@@ -62,8 +63,8 @@ public:
     }
 
 public:
-    Shader() = default;
-    ~Shader() {
+    ShaderAuto() = default;
+    ~ShaderAuto() {
         unit();
     }
 
@@ -85,7 +86,8 @@ public:
         m_ShaderId = glCreateShader((GLenum)vShaderType);
         CheckGLErrors;
         if (m_ShaderId > 0U) {
-            const GLchar* sources = vCode.c_str();
+            const auto code = m_UniformStrings.parse_and_filter_code(vCode);
+            const GLchar* sources = code.c_str();
             glShaderSource(m_ShaderId, 1U, &sources, nullptr);
             CheckGLErrors;
             glCompileShader(m_ShaderId);

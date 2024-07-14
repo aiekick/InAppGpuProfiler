@@ -46,19 +46,19 @@ SOFTWARE.
 
 namespace glApi {
 
-class QuadVfx;
-typedef std::shared_ptr<QuadVfx> QuadVfxPtr;
-typedef std::weak_ptr<QuadVfx> QuadVfxWeak;
+class QuadVfxAuto;
+typedef std::shared_ptr<QuadVfxAuto> QuadVfxAutoPtr;
+typedef std::weak_ptr<QuadVfxAuto> QuadVfxAutoWeak;
 
-class QuadVfx {
+class QuadVfxAuto {
 private:
-    QuadVfxWeak m_This;
+    QuadVfxAutoWeak m_This;
     std::string m_Name;
     QuadMeshWeak m_QuadMesh;
-    ShaderWeak m_VertShader;
+    ShaderAutoWeak m_VertShader;
     FBOPipeLinePtr m_FBOPipeLinePtr = nullptr;
-    ShaderPtr m_FragShaderPtr = nullptr;
-    ProgramPtr m_ProgramPtr = nullptr;
+    ShaderAutoPtr m_FragShaderPtr = nullptr;
+    ProgramAutoPtr m_ProgramPtr = nullptr;
     std::array<GLuint, 2U> m_Size;
     bool m_UseMipMapping = false;
     bool m_MultiPass = false;
@@ -66,9 +66,9 @@ private:
     bool m_RenderingPause = false;
 
 public:
-    static QuadVfxPtr create(           //
+    static QuadVfxAutoPtr create(       //
         const std::string& vName,       //
-        ShaderWeak vVertShader,         //
+        ShaderAutoWeak vVertShader,     //
         QuadMeshWeak vQuadMesh,         //
         const std::string& vFragFile,   //
         const GLsizei& vSx,             //
@@ -76,7 +76,7 @@ public:
         const uint32_t& vCountBuffers,  //
         const bool& vUseMipMapping,     //
         const bool& vMultiPass) {       //
-        auto res = std::make_shared<QuadVfx>();
+        auto res = std::make_shared<QuadVfxAuto>();
         res->m_This = res;
         if (!res->init(vName, vVertShader, vQuadMesh, vFragFile, vSx, vSy, vCountBuffers, vUseMipMapping, vMultiPass)) {
             res.reset();
@@ -85,14 +85,14 @@ public:
     }
 
 public:
-    QuadVfx() = default;
-    ~QuadVfx() {
+    QuadVfxAuto() = default;
+    ~QuadVfxAuto() {
         unit();
     }
 
     bool init(                          //
         const std::string& vName,       //
-        ShaderWeak vVertShader,         //
+        ShaderAutoWeak vVertShader,     //
         QuadMeshWeak vQuadMesh,         //
         const std::string& vFragFile,   //
         const GLsizei& vSx,             //
@@ -115,9 +115,9 @@ public:
         m_MultiPass = vMultiPass;
         m_FBOPipeLinePtr = FBOPipeLine::create(vSx, vSy, vCountBuffers, vUseMipMapping, m_MultiPass);
         if (m_FBOPipeLinePtr != nullptr) {
-            m_FragShaderPtr = glApi::Shader::createFromFile(vName, GL_FRAGMENT_SHADER, vFragFile);
+            m_FragShaderPtr = glApi::ShaderAuto::createFromFile(vName, GL_FRAGMENT_SHADER, vFragFile);
             if (m_FragShaderPtr != nullptr) {
-                m_ProgramPtr = glApi::Program::create(vName);
+                m_ProgramPtr = glApi::ProgramAuto::create(vName);
                 if (m_ProgramPtr != nullptr) {
                     if (m_ProgramPtr->addShader(m_VertShader)) {
                         if (m_ProgramPtr->addShader(m_FragShaderPtr)) {
@@ -147,7 +147,7 @@ public:
     bool& getRenderingPauseRef() {
         return m_RenderingPause;
     }
-    void setUniformPreUploadFunctor(Program::UniformPreUploadFunctor vUniformPreUploadFunctor) {
+    void setUniformPreUploadFunctor(ProgramAuto::UniformPreUploadFunctor vUniformPreUploadFunctor) {
         assert(m_ProgramPtr != nullptr);
         m_ProgramPtr->setUniformPreUploadFunctor(vUniformPreUploadFunctor);
     }
@@ -157,7 +157,7 @@ public:
         float* vUniformPtr,               //
         const GLuint& vCountChannels,     //
         const bool& vShowWidget,          //
-        const Program::UniformWidgetFunctor& vWidgetFunctor) {
+        const ProgramAuto::UniformWidgetFunctor& vWidgetFunctor) {
         assert(m_ProgramPtr != nullptr);
         m_ProgramPtr->addUniformFloat(vShaderType, vUniformName, vUniformPtr, vCountChannels, vShowWidget, vWidgetFunctor);
     }
@@ -167,7 +167,7 @@ public:
         int32_t* vUniformPtr,             //
         const GLuint& vCountChannels,     //
         const bool& vShowWidget,          //
-        const Program::UniformWidgetFunctor& vWidgetFunctor) {
+        const ProgramAuto::UniformWidgetFunctor& vWidgetFunctor) {
         assert(m_ProgramPtr != nullptr);
         m_ProgramPtr->addUniformInt(vShaderType, vUniformName, vUniformPtr, vCountChannels, vShowWidget, vWidgetFunctor);
     }
@@ -177,7 +177,7 @@ public:
         int32_t vSampler2D,               //
         const bool& vShowWidget) {
         assert(m_ProgramPtr != nullptr);
-        m_ProgramPtr->addUniformSampler2D(vShaderType, vUniformName, vSampler2D, vShowWidget);
+        m_ProgramPtr->addUniformSampler2D(vShaderType, vUniformName, vSampler2D);
     }
     void finalizeBeforeRendering() {
         assert(m_ProgramPtr != nullptr);
@@ -223,17 +223,13 @@ public:
             }
         }
     }
-    GLuint getTextureId(const size_t& vBufferIdx = 0U) {
+    GLuint getTextureId() {
         assert(m_FBOPipeLinePtr != nullptr);
         auto front_fbo_ptr = m_FBOPipeLinePtr->getFrontFBO().lock();
         if (front_fbo_ptr != nullptr) {
-            return front_fbo_ptr->getTextureId(vBufferIdx);
-        }    
+            return front_fbo_ptr->getTextureId();
+        }
         return 0U;
-    }
-    FBOWeak getFrontFBO() {
-        assert(m_FBOPipeLinePtr != nullptr);
-        return m_FBOPipeLinePtr->getFrontFBO();    
     }
     void drawImGuiThumbnail(const float& vSx, const float& vSy, const float& vScaleInv) {
         assert(m_FBOPipeLinePtr != nullptr);

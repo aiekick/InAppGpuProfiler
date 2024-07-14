@@ -75,7 +75,7 @@ public:
             m_Textures.resize(m_CountBuffers);
             m_ColorDrawBuffers = new GLenum[m_CountBuffers];
             for (GLuint idx = 0U; idx < vCountBuffers; ++idx) {
-                m_Textures[idx] = Texture::createEmpty(vSX, vSY, vUseMipMapping);
+                m_Textures[idx] = Texture::createEmpty(vSX, vSY, "clamp", "nearest", vUseMipMapping);
                 if (m_Textures[idx] != nullptr) {
                     m_ColorDrawBuffers[idx] = GL_COLOR_ATTACHMENT0 + (GLenum)idx;
                     glFramebufferTexture2D(GL_FRAMEBUFFER, m_ColorDrawBuffers[idx], GL_TEXTURE_2D, m_Textures[idx]->getTexId(), 0);
@@ -134,7 +134,11 @@ public:
         CheckGLErrors;
     }
 
-    GLuint getTextureId(const size_t& vBufferIdx = 0U) {
+    GLuint getBuffersCount() const  {
+        return m_CountBuffers;
+    }
+    
+    GLuint getTextureId(const size_t& vBufferIdx = 0U) const {
         if (m_Textures.size() > vBufferIdx) {
             return m_Textures[vBufferIdx]->getTexId();
         }
@@ -144,10 +148,13 @@ public:
     bool resize(const GLsizei& vNewSx, const GLsizei& vNewSy) {
         bool res = false;
         if (m_FBOId > 0) {
+            m_SizeX = vNewSx;
+            m_SizeY = vNewSy;
             glBindFramebuffer(GL_FRAMEBUFFER, m_FBOId);
             CheckGLErrors;
             for (GLuint idx = 0U; idx < m_CountBuffers; ++idx) {
                 if (m_Textures[idx] != nullptr) {
+                    // m_Textures[idx] = Texture::createEmpty(vNewSx, vNewSy, m_UseMipMapping);
                     if (m_Textures[idx]->resize(vNewSx, vNewSy)) {
                         if (m_Textures[idx] != nullptr) {
                             m_ColorDrawBuffers[idx] = GL_COLOR_ATTACHMENT0 + (GLenum)idx;
@@ -166,7 +173,7 @@ public:
     }
 
     bool check() {
-        if (glIsFramebuffer(m_FBOId) == GL_TRUE) {
+        if (GL_TRUE == glIsFramebuffer(m_FBOId)) {
             CheckGLErrors;
             if (glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE) {
                 CheckGLErrors;
@@ -178,6 +185,23 @@ public:
 
     void unit() {
         glDeleteFramebuffers(1, &m_FBOId);
+        CheckGLErrors;
+    }
+
+    void blitOnScreen(const GLint vX, const GLint vY, const GLint vW, const GLint vH, const GLint vAttachementID, GLbitfield vMask, GLenum vFilter) {
+        glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+        CheckGLErrors;
+
+        glBindFramebuffer(GL_READ_FRAMEBUFFER, m_FBOId);
+        CheckGLErrors;
+
+        glReadBuffer(GL_COLOR_ATTACHMENT0 + vAttachementID);
+        CheckGLErrors;
+
+        glDrawBuffer(GL_BACK);
+        CheckGLErrors;
+
+        glBlitFramebuffer(0, 0, m_SizeX, m_SizeY, vX, vY, vX + vW, vY + vH, vMask, vFilter);
         CheckGLErrors;
     }
 };
@@ -270,19 +294,19 @@ public:
         }
 
     }
-    GLuint getFrontTextureId(const size_t& vBufferIdx = 0U) {
+    GLuint getFrontTextureId(const size_t& vBufferIdx = 0U) const {
         assert(m_FrontFBOPtr != nullptr);
         return m_FrontFBOPtr->getTextureId(vBufferIdx);
     }
-    GLuint getBackTextureId(const size_t& vBufferIdx = 0U) {
+    GLuint getBackTextureId(const size_t& vBufferIdx = 0U) const {
         assert(m_MultiPass);
         assert(m_BackFBOPtr != nullptr);
         return m_BackFBOPtr->getTextureId(vBufferIdx);
     }
-    FBOWeak getFrontFBO() {
+    FBOWeak getFrontFBO() const {
         return m_FrontFBOPtr;
     }
-    FBOWeak getBackFBO() {
+    FBOWeak getBackFBO() const {
         assert(m_MultiPass);
         return m_BackFBOPtr;
     }
