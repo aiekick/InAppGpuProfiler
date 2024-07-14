@@ -1,9 +1,9 @@
-[![Win](https://github.com/aiekick/iagp/actions/workflows/Win.yml/badge.svg)](https://github.com/aiekick/iagp/actions/workflows/Win.yml)
-[![Linux](https://github.com/aiekick/iagp/actions/workflows/Linux.yml/badge.svg)](https://github.com/aiekick/iagp/actions/workflows/Linux.yml)
-[![Osx](https://github.com/aiekick/iagp/actions/workflows/Osx.yml/badge.svg)](https://github.com/aiekick/iagp/actions/workflows/Osx.yml)
+[![Win](https://github.com/aiekick/InAppGpuProfiler/actions/workflows/Win.yml/badge.svg)](https://github.com/aiekick/InAppGpuProfiler/actions/workflows/Win.yml)
+[![Linux](https://github.com/aiekick/InAppGpuProfiler/actions/workflows/Linux.yml/badge.svg)](https://github.com/aiekick/InAppGpuProfiler/actions/workflows/Linux.yml)
+[![Osx](https://github.com/aiekick/InAppGpuProfiler/actions/workflows/Osx.yml/badge.svg)](https://github.com/aiekick/InAppGpuProfiler/actions/workflows/Osx.yml)
 [![Wrapped Dear ImGui Version](https://img.shields.io/badge/Dear%20ImGui%20Version-1.89.9-blue.svg)](https://github.com/ocornut/imgui)
 
-# [iagp](https://github.com/aiekick/iagp)
+# [iagp](https://github.com/aiekick/InAppGpuProfiler)
 
 # purpose
 
