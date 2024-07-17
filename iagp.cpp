@@ -1,4 +1,4 @@
-﻿/*
+/*
 MIT License
 
 Copyright (c) 2021-2024 Stephane Cuillerdier (aka aiekick)
@@ -745,11 +745,19 @@ void InAppGpuGLContext::Collect() {
                 auto ptr = m_QueryIDToZone[id];
                 if (ptr != nullptr) {
                     if (id == ptr->ids[0]) {
+#ifdef __APPLE__
+						ptr->SetStartTimeStamp(ptr->m_CPUStartTimeStamp);
+#else
                         ptr->SetStartTimeStamp(value64);
+#endif
                     } else if (id == ptr->ids[1]) {
                         ptr->last_count = ptr->current_count;
                         ptr->current_count = 0U;
-                        ptr->SetEndTimeStamp(value64);
+#ifdef __APPLE__
+						ptr->SetEndTimeStamp(ptr->m_CPUEndTimeStamp);
+#else
+						ptr->SetEndTimeStamp(value64);
+#endif
                     } else {
                         DEBUG_BREAK;
                     }
@@ -1108,6 +1116,10 @@ InAppGpuScopedZone::InAppGpuScopedZone(const bool& vIsRoot, const void* vPtr, co
                 queryPtr = context_ptr->GetQueryZoneForName(vPtr, label, vSection, vIsRoot);
                 if (queryPtr != nullptr) {
                     glQueryCounter(queryPtr->ids[0], GL_TIMESTAMP);
+#ifdef __APPLE__
+					auto tstamp = std::chrono::high_resolution_clock::now();
+					queryPtr->m_CPUStartTimeStamp = std::chrono::duration_cast<std::chrono::nanoseconds>(tstamp.time_since_epoch()).count();
+#endif
 #ifdef IAGP_DEBUG_MODE_LOGGING
                     IAGP_DEBUG_MODE_LOGGING("%*s begin : [%u:%u] (depth:%u) (%s)",  //
                                        queryPtr->depth, "", queryPtr->ids[0], queryPtr->ids[1], queryPtr->depth, label.c_str());
@@ -1132,6 +1144,10 @@ InAppGpuScopedZone::~InAppGpuScopedZone() {
             }
 #endif
             glQueryCounter(queryPtr->ids[1], GL_TIMESTAMP);
+#ifdef __APPLE__
+			auto tstamp = std::chrono::high_resolution_clock::now();
+			queryPtr->m_CPUEndTimeStamp = std::chrono::duration_cast<std::chrono::nanoseconds>(tstamp.time_since_epoch()).count();
+#endif
             ++queryPtr->current_count;
             --sCurrentDepth;
         }
