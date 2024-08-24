@@ -62,19 +62,19 @@ SOFTWARE.
 #endif // IMGUI_DEFINE_MATH_OPERATORS
 
 // a main zone for the frame must always been defined for the frame
-#define AIGPNewFrame(section, fmt, ...)  \
+#define IAGPNewFrame(section, fmt, ...)  \
     auto __IAGP__ScopedMainZone = iagp::InAppGpuScopedZone(true, nullptr, section, fmt, ##__VA_ARGS__); \
     (void)__IAGP__ScopedMainZone
 
-#define AIGPScoped(section, fmt, ...)                                                          \
+#define IAGPScoped(section, fmt, ...)                                                          \
     auto __IAGP__ScopedSubZone = iagp::InAppGpuScopedZone(false, nullptr, section, fmt, ##__VA_ARGS__); \
     (void)__IAGP__ScopedSubZone
 
-#define AIGPScopedPtr(ptr, section, fmt, ...)                                                                   \
+#define IAGPScopedPtr(ptr, section, fmt, ...)                                                                   \
     auto __IAGP__ScopedSubZone = iagp::InAppGpuScopedZone(false, ptr, section, fmt, ##__VA_ARGS__); \
     (void)__IAGP__ScopedSubZone
 
-#define AIGPCollect iagp::InAppGpuProfiler::Instance()->Collect()
+#define IAGPCollect iagp::InAppGpuProfiler::Instance()->Collect()
 
 #ifndef IAGP_RECURSIVE_LEVELS_COUNT
 #define IAGP_RECURSIVE_LEVELS_COUNT 20U
