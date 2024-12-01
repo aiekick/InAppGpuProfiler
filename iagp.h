@@ -166,7 +166,7 @@ public:
     static bool sActivateLogger;
     static std::vector<IAGPQueryZoneWeak> sTabbedQueryZones;
     static IAGPQueryZonePtr create(IAGP_GPU_CONTEXT vContext, const std::string& vName, const std::string& vSectionName,
-                                   const bool& vIsRoot = false);
+                                   const bool vIsRoot = false);
     static circularSettings sCircularSettings;
 
 private:
@@ -214,7 +214,7 @@ public:
 public:
     InAppGpuQueryZone() = default;
     InAppGpuQueryZone(IAGP_GPU_CONTEXT vContext, const std::string& vName, const std::string& vSectionName,
-                      const bool& vIsRoot = false);
+                      const bool vIsRoot = false);
     ~InAppGpuQueryZone();
     void Clear();
     void SetStartTimeStamp(const GLuint64& vValue);
@@ -229,7 +229,7 @@ public:
     void DrawBreadCrumbTrail(IAGPQueryZoneWeak& vOutSelectedQuery);
 
 private:
-    void m_DrawList_DrawBar(const char* vLabel, const ImRect& vRect, const ImVec4& vColor, const bool& vHovered);
+    void m_DrawList_DrawBar(const char* vLabel, const ImRect& vRect, const ImVec4& vColor, const bool vHovered);
     bool m_ComputeRatios(IAGPQueryZonePtr vRoot, IAGPQueryZoneWeak vParent, uint32_t vDepth, float& vOutStartRatio, float& vOutSizeRatio);
     bool m_DrawHorizontalFlameGraph(IAGPQueryZonePtr vRoot, IAGPQueryZoneWeak& vOutSelectedQuery, IAGPQueryZoneWeak vParent,
                                     uint32_t vDepth);
@@ -258,7 +258,7 @@ public:
     void Collect();
     void DrawFlamGraph(const InAppGpuGraphTypeEnum& vGraphType);
     void DrawDetails();
-    IAGPQueryZonePtr GetQueryZoneForName(const void* vPtr, const std::string& vName, const std::string& vSection = "", const bool& vIsRoot = false);
+    IAGPQueryZonePtr GetQueryZoneForName(const void* vPtr, const std::string& vName, const std::string& vSection = "", const bool vIsRoot = false);
 
 private:
     void m_SetQueryZoneForDepth(IAGPQueryZonePtr vQueryZone, GLuint vDepth);
@@ -274,7 +274,7 @@ public:
     IAGPQueryZonePtr queryPtr = nullptr;
 
 public:
-    InAppGpuScopedZone(const bool& vIsRoot, const void* vPtr, const std::string& vSection, const char* fmt, ...);
+    InAppGpuScopedZone(const bool vIsRoot, const void* vPtr, const std::string& vSection, const char* fmt, ...);
     ~InAppGpuScopedZone();
 };
 

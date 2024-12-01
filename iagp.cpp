@@ -189,7 +189,7 @@ float InAppGpuQueryZone::sContrastRatio = 4.3f;
 bool InAppGpuQueryZone::sActivateLogger = false;
 std::vector<IAGPQueryZoneWeak> InAppGpuQueryZone::sTabbedQueryZones = {};
 IAGPQueryZonePtr InAppGpuQueryZone::create(IAGP_GPU_CONTEXT vContext, const std::string& vName, const std::string& vSectionName,
-                                           const bool& vIsRoot) {
+                                           const bool vIsRoot) {
     auto res = std::make_shared<InAppGpuQueryZone>(vContext, vName, vSectionName, vIsRoot);
     res->m_This = res;
     return res;
@@ -197,7 +197,7 @@ IAGPQueryZonePtr InAppGpuQueryZone::create(IAGP_GPU_CONTEXT vContext, const std:
 InAppGpuQueryZone::circularSettings InAppGpuQueryZone::sCircularSettings;
 
 InAppGpuQueryZone::InAppGpuQueryZone(IAGP_GPU_CONTEXT vContext, const std::string& vName, const std::string& vSectionName,
-                                     const bool& vIsRoot)
+                                     const bool vIsRoot)
     : m_Context(vContext), m_IsRoot(vIsRoot), m_SectionName(vSectionName), name(vName) {
     m_StartFrameId = 0;
     m_EndFrameId = 0;
@@ -451,7 +451,7 @@ void InAppGpuQueryZone::DrawBreadCrumbTrail(IAGPQueryZoneWeak& vOutSelectedQuery
     ImGui::PopID();
 }
 
-void InAppGpuQueryZone::m_DrawList_DrawBar(const char* vLabel, const ImRect& vRect, const ImVec4& vColor, const bool& vHovered) {
+void InAppGpuQueryZone::m_DrawList_DrawBar(const char* vLabel, const ImRect& vRect, const ImVec4& vColor, const bool vHovered) {
     const ImGuiContext& g = *GImGui;
     ImGuiWindow* window = g.CurrentWindow;
     const ImGuiStyle& style = g.Style;
@@ -790,7 +790,7 @@ void InAppGpuGLContext::DrawDetails() {
 }
 
 IAGPQueryZonePtr InAppGpuGLContext::GetQueryZoneForName(const void* vPtr, const std::string& vName, const std::string& vSection,
-                                                        const bool& vIsRoot) {
+                                                        const bool vIsRoot) {
     IAGPQueryZonePtr res = nullptr;
 
     /////////////////////////////////////////////
@@ -1094,7 +1094,7 @@ uint32_t InAppGpuScopedZone::sCurrentDepth = 0U;
 uint32_t InAppGpuScopedZone::sMaxDepth = 0U;
 
 // SCOPED ZONE
-InAppGpuScopedZone::InAppGpuScopedZone(const bool& vIsRoot, const void* vPtr, const std::string& vSection, const char* fmt, ...) {
+InAppGpuScopedZone::InAppGpuScopedZone(const bool vIsRoot, const void* vPtr, const std::string& vSection, const char* fmt, ...) {
     if (InAppGpuProfiler::sIsActive) {
         va_list args;
         va_start(args, fmt);
