@@ -422,33 +422,34 @@ void InAppGpuQueryZone::UpdateBreadCrumbTrail() {
 }
 
 void InAppGpuQueryZone::DrawBreadCrumbTrail(IAGPQueryZoneWeak& vOutSelectedQuery) {
-    ImGui::PushID("DrawBreadCrumbTrail");
-    for (GLuint idx = 0U; idx < depth; ++idx) {
-        if (idx < m_BreadCrumbTrail.size()) {
-            auto ptr = m_BreadCrumbTrail[idx].lock();
-            if (ptr != nullptr) {
-                if (idx > 0U) {
-                    ImGui::SameLine();
-                    ImGui::Text("%s", ">");
-                    ImGui::SameLine();
+    if (ImGui::BeginMenuBar()) {
+        ImGui::Separator();
+        ImGui::PushID("DrawBreadCrumbTrail");
+        for (GLuint idx = 0U; idx < depth; ++idx) {
+            if (idx < m_BreadCrumbTrail.size()) {
+                auto ptr = m_BreadCrumbTrail[idx].lock();
+                if (ptr != nullptr) {
+                    if (idx > 0U) {
+                        ImGui::Text("%s", ">");
+                    }
+                    ImGui::PushID(ptr.get());
+                    if (IAGP_IMGUI_BUTTON(ptr->imGuiLabel.c_str())) {
+                        vOutSelectedQuery = m_BreadCrumbTrail[idx];
+                    }
+                    ImGui::PopID();
                 }
-                ImGui::PushID(ptr.get());
-                if (IAGP_IMGUI_BUTTON(ptr->imGuiLabel.c_str())) {
-                    vOutSelectedQuery = m_BreadCrumbTrail[idx];
-                }
-                ImGui::PopID();
+            } else {
+                DEBUG_BREAK;
+                // maybe you need to define greater value for RECURSIVE_LEVELS_COUNT
+                break;
             }
-        } else {
-            DEBUG_BREAK;
-            // maybe you need to define greater value for RECURSIVE_LEVELS_COUNT
-            break;
         }
+        if (depth > 0) {
+            ImGui::Text("> %s", name.c_str());
+        }
+        ImGui::PopID();
+        ImGui::EndMenuBar();
     }
-    if (depth > 0) {
-        ImGui::SameLine();
-        ImGui::Text("> %s", name.c_str());
-    }
-    ImGui::PopID();
 }
 
 void InAppGpuQueryZone::m_DrawList_DrawBar(const char* vLabel, const ImRect& vRect, const ImVec4& vColor, const bool vHovered) {
@@ -1055,8 +1056,8 @@ void InAppGpuProfiler::DrawDetailsNoWin() {
 #endif
         ImGui::TableSetupColumn("Elapsed time");
         ImGui::TableSetupColumn("Max fps");
-        ImGui::TableSetupColumn("Start time");
-        ImGui::TableSetupColumn("End time");
+        ImGui::TableSetupColumn("Start time", ImGuiTableColumnFlags_DefaultHide);
+        ImGui::TableSetupColumn("End time", ImGuiTableColumnFlags_DefaultHide);
         ImGui::TableHeadersRow();
         for (const auto& con : m_Contexts) {
             if (con.second != nullptr) {
