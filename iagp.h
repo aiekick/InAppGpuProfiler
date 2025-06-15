@@ -1,4 +1,4 @@
-﻿/*
+/*
 MIT License
 
 Copyright (c) 2021-2024 Stephane Cuillerdier (aka aiekick)
@@ -56,6 +56,11 @@ SOFTWARE.
 #include <string>
 #include <functional>
 #include <unordered_map>
+
+// OS X can't use GL_ARB_timer_query
+#ifdef __APPLE__
+#include <chrono>
+#endif
 
 #ifndef IMGUI_DEFINE_MATH_OPERATORS
 #define IMGUI_DEFINE_MATH_OPERATORS
@@ -168,7 +173,10 @@ public:
     static IAGPQueryZonePtr create(IAGP_GPU_CONTEXT vContext, const std::string& vName, const std::string& vSectionName,
                                    const bool vIsRoot = false);
     static circularSettings sCircularSettings;
-
+#ifdef __APPLE__
+	GLuint64 m_CPUStartTimeStamp = 0;
+	GLuint64 m_CPUEndTimeStamp = 0;
+#endif
 private:
     IAGPQueryZoneWeak m_This;
     IAGP_GPU_CONTEXT m_Context;
