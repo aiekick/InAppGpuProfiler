@@ -43,7 +43,7 @@ SOFTWARE.
 #endif  // IMGUI_INCLUDE
 
 #ifndef CUSTOM_IN_APP_GPU_PROFILER_CONFIG
-#include "InAppGpuProfilerConfig.h"
+#include "iagpConfig.h"
 #else // CUSTOM_IN_APP_GPU_PROFILER_CONFIG
 #include CUSTOM_IN_APP_GPU_PROFILER_CONFIG
 #endif // CUSTOM_IN_APP_GPU_PROFILER_CONFIG
